@@ -2,18 +2,10 @@
 
 Claude Code plugin for [sqlew](https://github.com/sqlew-io/sqlew) - Context sharing MCP server with Plan-to-ADR integration.
 
-## Why Use the Plugin?
-
-- **Automatic Setup**: Skills, Hooks, Agents, and MCP config are installed automatically
-- **Clean Uninstall**: `/plugin remove sqlew` removes everything cleanly
-- **No Project Clutter**: No files left in your project directories
-- **Marketplace Discovery**: Find and install via Claude Code marketplace
-
 ## Features
 
 - **Skills**: Auto-triggered guidance for Plan Mode decision/constraint formatting
 - **Hooks**: Automatic context suggestion and decision saving
-- **Agents**: Specialized subagents for architecture, research, and task management
 
 ## Installation
 
@@ -42,6 +34,12 @@ The plugin automatically configures:
 - Specialized Agents
 
 > **Note:** No manual `.mcp.json` editing required!
+
+## Why Use the Plugin?
+
+- **Automatic Setup**: Skills, Hooks, Agents, and MCP config are installed automatically
+- **Clean Uninstall**: `/plugin remove sqlew` removes everything cleanly
+- **No Project Clutter**: No files left in your project directories
 
 ### Local Development
 

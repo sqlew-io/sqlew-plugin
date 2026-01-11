@@ -1,11 +1,12 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "sqlew-plugin",
-  "version": "1.0.0",
-  "description": "Context sharing for AI agents with Plan-to-ADR integration",
   "owner": {
     "name": "sqlew-io",
     "email": "contact@sqlew.io"
+  },
+  "metadata": {
+    "description": "Context sharing for AI agents with Plan-to-ADR integration",
+    "version": "1.0.0"
   },
   "plugins": [
     {
