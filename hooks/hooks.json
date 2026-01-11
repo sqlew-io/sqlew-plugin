@@ -1,0 +1,80 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew suggest",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Write|EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew track-plan",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew save",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew check-completion",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew on-exit-plan",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew on-subagent-stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew on-stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
