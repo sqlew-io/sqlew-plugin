@@ -75,6 +75,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew on-session-start",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
