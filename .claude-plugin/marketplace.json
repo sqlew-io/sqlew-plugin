@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "sqlew-plugin",
+      "name": "sqlew",
       "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and Agents for sqlew MCP server.",
       "version": "5.0.0",
       "source": {
