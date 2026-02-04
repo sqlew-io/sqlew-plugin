@@ -32,7 +32,6 @@ With `sqlew init --hooks`, everything is **automatic**:
 
 ```typescript
 mcp__sqlew__suggest action="by_tags" tags=["tag"]
-mcp__sqlew__task action="list" status="in_progress"
 ```
 
 ### Decision Recording
@@ -42,6 +41,18 @@ mcp__sqlew__decision action="set"
   key="decision-key"
   value="chosen approach"
 ```
+
+### Decision Context (Why + Alternatives)
+
+```typescript
+mcp__sqlew__decision action="add_decision_context"
+  key="decision-key"
+  rationale="Why this decision was made"
+  alternatives_considered=["Option A", "Option B"]
+  tradeoffs="Pros and cons description"
+```
+
+> **Tip**: In plan mode, use `- **Rationale**:` field in 📌 Decision blocks for auto-extraction.
 
 ### Task Creation
 
