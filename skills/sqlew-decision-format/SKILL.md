@@ -1,9 +1,9 @@
 ---
 name: sqlew-decision-format
 description: |
-  Format guide for recording decisions and constraints in plan mode.
-  Auto-injected during plan creation to encourage structured documentation.
-  Auto-detected and registered as draft on ExitPlanMode.
+  REQUIRED format for decisions and constraints in plan mode.
+  Plans MUST use 📌 Decision / 🚫 Constraint markers for auto-extraction on ExitPlanMode.
+  Invoke this skill when writing plans to get the exact template.
 ---
 
 ## Plan Mode: Decision & Constraint Recording

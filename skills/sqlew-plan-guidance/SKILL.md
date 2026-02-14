@@ -1,21 +1,55 @@
 ---
 name: sqlew-plan-guidance
 description: |
-  Quick reference for sqlew integration.
-  Provides usage patterns for Plan mode with Claude Code Hooks automation.
+  REQUIRED workflow for plan mode with sqlew integration.
+  MUST search for related context before writing plans.
+  Invoke for suggest search steps, Related Context template, and queue monitoring.
 ---
 
-## Automatic Integration (v4.1.0+)
+## REQUIRED: Suggest Search BEFORE Planning
 
-With `sqlew init --hooks`, everything is **automatic**:
+**CRITICAL**: Before writing any plan, you MUST search for related context.
+
+**Step 1**: Extract keywords from the user's task (e.g., migration, auth, database)
+
+**Step 2**: Run suggest search:
+```
+suggest { action: "by_context", key: "<keyword>", tags: ["<relevant-tags>"] }
+suggest { action: "by_context", target: "constraint", text: "<topic>" }
+```
+
+**Step 3**: Include results in plan (MANDATORY section):
+```markdown
+## Related Context (from sqlew)
+
+### Past Decisions
+| Key | Value | Score |
+|-----|-------|-------|
+| path/to/decision | description | 85 |
+
+> If empty: "No related decisions found for: <keywords>"
+
+### Applicable Constraints
+- **[category]**: constraint text (Priority: high)
+
+> If empty: "No constraints found for: <keywords>"
+```
+
+**FAILURE TO INCLUDE "Related Context" SECTION = INVALID PLAN**
+
+---
+
+## Automatic Integration (with sqlew-plugin)
+
+With the sqlew-plugin installed, everything is **automatic**:
 
 | Event | Hook | Action |
 |-------|------|--------|
+| User prompt submitted | UserPromptSubmit | Auto-inject plan mode enforcement |
 | Task tool called | PreToolUse | Auto-suggest related decisions |
 | Plan file written | PreToolUse | Auto-track with plan ID |
 | Code edited | PostToolUse | Auto-save decision (status: draft) |
-| All todos completed | PostToolUse | Auto-update status to active |
-| Git merge/rebase | Git hooks | Auto-mark as implemented |
+| ExitPlanMode | PostToolUse | Auto-extract 📌/🚫 patterns |
 
 ## Manual Commands (Slash Command)
 
@@ -23,44 +57,75 @@ With `sqlew init --hooks`, everything is **automatic**:
 /sqlew                           # Show status
 /sqlew search for <topic>        # Find related decisions
 /sqlew record <decision>         # Record decision
-/sqlew show remaining tasks      # List active tasks
 ```
 
 ## Direct MCP Tool Usage (Advanced)
 
 ### Research
 
-```typescript
-mcp__sqlew__suggest action="by_tags" tags=["tag"]
+```
+suggest { action: "by_context", key: "<keyword>", tags: ["<tags>"] }
+suggest { action: "by_tags", tags: ["tag1", "tag2"] }
 ```
 
 ### Decision Recording
 
-```typescript
-mcp__sqlew__decision action="set"
-  key="decision-key"
-  value="chosen approach"
+```
+decision { action: "set", key: "decision-key", value: "chosen approach" }
 ```
 
 ### Decision Context (Why + Alternatives)
 
-```typescript
-mcp__sqlew__decision action="add_decision_context"
-  key="decision-key"
-  rationale="Why this decision was made"
-  alternatives_considered=["Option A", "Option B"]
-  tradeoffs="Pros and cons description"
+```
+decision { action: "add_decision_context", key: "decision-key", rationale: "Why", alternatives_considered: ["A", "B"], tradeoffs: "Pros and cons" }
 ```
 
 > **Tip**: In plan mode, use `- **Rationale**:` field in 📌 Decision blocks for auto-extraction.
 
-### Task Creation
+---
 
-```typescript
-mcp__sqlew__task action="create_batch" tasks=[
-  { title: "Task title", layer: "business", priority: 3 }
-]
+## Queue Monitoring After Plan Mode
+
+### When to Check
+
+After ExitPlanMode or when Plan-to-ADR processing completes, check for unprocessed items.
+
+**Queue file locations:**
+- Pending: `.sqlew/queue/pending.json`
+- Failed: `.sqlew/queue/failed.json`
+
+### How to Check
+
 ```
+queue { action: "list" }
+```
+
+Response includes `count` (pending) and `failedCount` (failed items).
+
+### Failed Queue
+
+Items that fail processing (e.g., HighSimilarity errors) are moved to `failed.json`.
+
+**Why items fail:**
+- **HighSimilarity (60%+)**: Item is too similar to an existing decision
+- **Validation errors**: Invalid layer, category, or other data issues
+
+**Resolution:**
+1. Check `failedItems` in `queue { action: "list" }` response
+2. For duplicates: `queue { action: "clear", target: "failed" }`
+3. For different intent: Re-register manually with a more specific key via `/sqlew record <decision>`
+
+### Queue Tool Actions
+
+| Action | Description | Example |
+|--------|-------------|---------|
+| `list` | Show pending and failed items | `queue { action: "list" }` |
+| `remove` | Remove specific pending item | `queue { action: "remove", index: 0 }` |
+| `clear` | Clear pending queue (default) | `queue { action: "clear" }` |
+| `clear` | Clear failed queue | `queue { action: "clear", target: "failed" }` |
+| `clear` | Clear both queues | `queue { action: "clear", target: "all" }` |
+
+---
 
 ## Decision Workflow (Hooks)
 
