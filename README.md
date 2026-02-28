@@ -21,10 +21,10 @@ npm i -g sqlew
 
 ```bash
 # Add the marketplace
-/plugin marketplace add sqlew-io/sqlew-plugin
+claude plugin marketplace add sqlew-io/sqlew-plugin
 
 # Install the plugin
-/plugin add sqlew
+claude plugin install sqlew
 ```
 
 The plugin automatically configures:
@@ -84,7 +84,8 @@ git clone https://github.com/sqlew-io/sqlew-plugin.git
 
 ```bash
 # Remove the plugin
-/plugin remove sqlew
+claude plugin remove sqlew
+claude plugin marketplace remove sqlew-io/sqlew-plugin
 
 # Optionally remove global rules
 rm -rf ~/.claude/rules/sqlew  # Unix
