@@ -55,44 +55,45 @@ This retrieves: **Rationale**, **Alternatives Considered**, **Tradeoffs**.
 
 ---
 
-## Step 3: Group Changes by Decision
+## Step 3: Group Files Under Decisions
 
-Organize the PR body around decisions, not files:
+Organize the PR body so each decision/constraint lists its related files directly:
 
 ```markdown
 ## Summary
 
 <!-- 1-3 bullet points: what this PR does overall -->
 
-## Architecture Decisions
+## Decision: <title> (<reason>)
 
-### [decision/key] — [Decision Value]
+- `path/to/file1.ts`: what changed and why
+- `path/to/file2.ts`: what changed and why
 
-- **Rationale**: Why this decision was made
-- **Alternatives**: Options that were considered
-- **Tradeoffs**: Pros and cons of the chosen approach
-- **Changes**:
-  - `path/to/file1.ts` — what changed and why
-  - `path/to/file2.ts` — what changed and why
+## Decision: <another title> (<reason>)
 
-### [another/decision] — [Value]
+- `path/to/file3.ts`: what changed and why
 
-- **Rationale**: ...
-- **Alternatives**: ...
-- **Tradeoffs**: ...
-- **Changes**:
-  - `path/to/file3.ts` — ...
+## Constraint: <rule description>
+
+- `path/to/file4.ts`: what changed to comply
 
 ## Other Changes
 
-<!-- Changes not tied to any ADR (refactors, typo fixes, formatting, etc.) -->
-- `path/to/file4.ts` — Minor cleanup
+<!-- Changes not tied to any Decision/Constraint -->
+- `path/to/file5.ts`: minor cleanup
 
 ## Test Plan
 
 - [ ] Test step 1
 - [ ] Test step 2
 ```
+
+**Format rules:**
+- `## Decision: <title> (<reason>)` — decision key and rationale in one line
+- `## Constraint: <rule>` — constraint text in one line
+- Each file entry: `- \`file\`: description` — what changed in that file
+- A file may appear under multiple decisions if relevant
+- `## Other Changes` — for files not tied to any ADR
 
 ---
 
@@ -105,11 +106,11 @@ gh pr create \
 ## Summary
 ...
 
-## Architecture Decisions
-...
+## Decision: <title> (<reason>)
+- `file.ts`: description
 
 ## Other Changes
-...
+- `file.ts`: description
 
 ## Test Plan
 ...
@@ -121,7 +122,7 @@ EOF
 
 ## Edge Cases
 
-- **No decisions found**: Omit the "Architecture Decisions" section entirely. Use standard PR format.
+- **No decisions found**: Use only `## Other Changes`. This is fine for pure refactors or chore PRs.
 - **Many decisions (>5)**: Include the top 5 by suggest score. Add a note: "See `/sqlew` for full decision history."
-- **Decisions without context**: Include the decision key and value, but omit Rationale/Alternatives/Tradeoffs sub-items.
-- **All changes are "Other"**: Skip ADR section. This is fine for pure refactors or chore PRs.
+- **Decisions without context**: Use `## Decision: <key> — <value>` without reason parenthetical.
+- **Mixed**: Some files under decisions, others under `## Other Changes`.
