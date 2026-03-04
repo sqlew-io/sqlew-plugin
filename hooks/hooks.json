@@ -20,6 +20,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew pr-adr",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
