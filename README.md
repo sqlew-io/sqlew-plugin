@@ -31,14 +31,13 @@ The plugin automatically configures:
 - MCP server settings (`.mcp.json`)
 - Claude Code Skills
 - Claude Code Hooks
-- Specialized Agents
 
 > **Note:** No manual `.mcp.json` editing required!
 
 ## Why Use the Plugin?
 
-- **Automatic Setup**: Skills, Hooks, Agents, and MCP config are installed automatically
-- **Clean Uninstall**: `/plugin remove sqlew` removes everything cleanly
+- **Automatic Setup**: Skills, Hooks, and MCP config are installed automatically
+- **Clean Uninstall**: `claude plugin remove sqlew` removes everything cleanly
 - **No Project Clutter**: No files left in your project directories
 
 ### Local Development
@@ -48,7 +47,7 @@ The plugin automatically configures:
 git clone https://github.com/sqlew-io/sqlew-plugin.git
 
 # Install from local path
-/plugin add ./path/to/sqlew-plugin
+claude plugin add ./path/to/sqlew-plugin
 ```
 
 ## Components
@@ -59,6 +58,7 @@ git clone https://github.com/sqlew-io/sqlew-plugin.git
 |-------|-------------|
 | `sqlew-decision-format` | Guides Plan Mode decision/constraint formatting with Markdown patterns |
 | `sqlew-plan-guidance` | Quick reference for sqlew Plan-to-ADR integration |
+| `sqlew-pr-adr` | Enriches PR bodies with ADR context via diff-based decision reverse lookup |
 
 ### Hooks
 
@@ -72,24 +72,10 @@ git clone https://github.com/sqlew-io/sqlew-plugin.git
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
 | Stop | `sqlew on-stop` | Cleanup on session stop |
 
-### Agents
-
-| Agent | Description |
-|-------|-------------|
-| `sqlew-architect` | Designs architecture and creates ADR entries |
-| `sqlew-researcher` | Searches and analyzes context |
-| `sqlew-scrum-master` | Manages tasks and tracks progress |
-
 ## Uninstallation
 
 ```bash
-# Remove the plugin
 claude plugin remove sqlew
-claude plugin marketplace remove sqlew-io/sqlew-plugin
-
-# Optionally remove global rules
-rm -rf ~/.claude/rules/sqlew  # Unix
-rmdir /s /q %USERPROFILE%\.claude\rules\sqlew  # Windows
 ```
 
 ## Related
