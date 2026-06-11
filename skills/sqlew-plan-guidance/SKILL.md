@@ -46,8 +46,11 @@ Plan mode guidance is delivered via **this skill** and `sqlew-decision-format`, 
 
 When writing a plan in Grok Build (`/plan` or `enter_plan_mode`):
 1. MUST search related context (suggest) BEFORE planning
-2. MUST include `### 📌 Decision:` and `### 🚫 Constraint:` blocks in plan.md
-3. Patterns are auto-extracted on `exit_plan_mode` approval → queue → shared DB
+2. Decision/Constraint template is **auto-appended to plan.md** on `enter_plan_mode` (file injection via hook)
+3. Fill in the template placeholders before approving the plan
+4. Patterns are auto-extracted on `exit_plan_mode` approval → queue → shared DB
+
+**Note**: `/plan` (Shift+Tab) without `enter_plan_mode` tool may skip file injection until the agent calls `enter_plan_mode`. Use `/sqlew-decision-format` as fallback.
 
 ---
 
