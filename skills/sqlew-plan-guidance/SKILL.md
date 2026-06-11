@@ -39,13 +39,28 @@ suggest { action: "by_context", target: "constraint", text: "<topic>" }
 
 ---
 
+## Grok Build Notes (v5.2+)
+
+**CRITICAL for Grok Build**: UserPromptSubmit hook stdout is **ignored** (passive hook).
+Plan mode guidance is delivered via **this skill** and `sqlew-decision-format`, not hook injection.
+
+When writing a plan in Grok Build (`/plan` or `enter_plan_mode`):
+1. MUST search related context (suggest) BEFORE planning
+2. Decision/Constraint template is **auto-appended to plan.md** on `enter_plan_mode` (file injection via hook)
+3. Fill in the template placeholders before approving the plan
+4. Patterns are auto-extracted on `exit_plan_mode` approval → queue → shared DB
+
+**Note**: `/plan` (Shift+Tab) without `enter_plan_mode` tool may skip file injection until the agent calls `enter_plan_mode`. Use `/sqlew-decision-format` as fallback.
+
+---
+
 ## Automatic Integration (with sqlew-plugin)
 
 With the sqlew-plugin installed, everything is **automatic**:
 
 | Event | Hook | Action |
 |-------|------|--------|
-| User prompt submitted | UserPromptSubmit | Auto-inject plan mode enforcement |
+| User prompt submitted | UserPromptSubmit | Auto-inject plan mode enforcement (Claude Code only; Grok uses skills) |
 | Task tool called | PreToolUse | Auto-suggest related decisions |
 | Plan file written | PreToolUse | Auto-track with plan ID |
 | Code edited | PostToolUse | Auto-save decision (status: draft) |

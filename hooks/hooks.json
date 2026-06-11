@@ -12,7 +12,7 @@
         ]
       },
       {
-        "matcher": "Write|EnterPlanMode",
+        "matcher": "Write|EnterPlanMode|enter_plan_mode",
         "hooks": [
           {
             "type": "command",
@@ -54,7 +54,7 @@
         ]
       },
       {
-        "matcher": "ExitPlanMode",
+        "matcher": "ExitPlanMode|exit_plan_mode",
         "hooks": [
           {
             "type": "command",
