@@ -1,6 +1,6 @@
 # sqlew-plugin
 
-Claude Code plugin for [sqlew](https://github.com/sqlew-io/sqlew) - Context sharing MCP server with Plan-to-ADR integration.
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code** and **Grok Build** (v5.2+).
 
 ## Features
 
@@ -17,7 +17,7 @@ Install the sqlew MCP server globally:
 npm i -g sqlew
 ```
 
-### Install Plugin
+### Claude Code
 
 ```bash
 # Add the marketplace
@@ -27,12 +27,19 @@ claude plugin marketplace add sqlew-io/sqlew-plugin
 claude plugin install sqlew
 ```
 
+### Grok Build
+
+```bash
+grok plugin install sqlew-io/sqlew-plugin --trust
+grok plugin update
+```
+
 The plugin automatically configures:
 - MCP server settings (`.mcp.json`)
-- Claude Code Skills
-- Claude Code Hooks
+- Skills (plan mode guidance, decision format, PR ADR)
+- Hooks (plan tracking, decision extraction)
 
-> **Note:** No manual `.mcp.json` editing required!
+> **Note:** No manual `.mcp.json` or `~/.grok/config.toml` MCP entry required. Do not duplicate hooks in `~/.grok/hooks/`.
 
 ## Why Use the Plugin?
 
@@ -43,11 +50,15 @@ The plugin automatically configures:
 ### Local Development
 
 ```bash
-# Clone this repository
 git clone https://github.com/sqlew-io/sqlew-plugin.git
+cd sqlew-plugin
 
-# Install from local path
-claude plugin add ./path/to/sqlew-plugin
+# Claude Code
+claude plugin marketplace add .
+claude plugin install sqlew
+
+# Grok Build
+grok plugin install . --trust
 ```
 
 ## Components
@@ -65,10 +76,10 @@ claude plugin add ./path/to/sqlew-plugin
 | Event | Action | Description |
 |-------|--------|-------------|
 | PreToolUse (Task) | `sqlew suggest` | Suggests related decisions before task execution |
-| PreToolUse (Write\|EnterPlanMode) | `sqlew track-plan` | Tracks plan file changes |
+| PreToolUse (Write\|EnterPlanMode\|enter_plan_mode) | `sqlew track-plan` | Tracks plan file changes (Grok: injects template into `plan.md`) |
+| PostToolUse (ExitPlanMode\|exit_plan_mode) | `sqlew on-exit-plan` | Extracts decisions from plan on exit |
 | PostToolUse (Edit\|Write) | `sqlew save` | Auto-saves decisions from edited files |
 | PostToolUse (TodoWrite) | `sqlew check-completion` | Checks task completion status |
-| PostToolUse (ExitPlanMode) | `sqlew on-exit-plan` | Extracts decisions from plan on exit |
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
 | Stop | `sqlew on-stop` | Cleanup on session stop |
 
