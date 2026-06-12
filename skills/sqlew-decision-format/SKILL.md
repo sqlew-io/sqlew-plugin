@@ -9,11 +9,14 @@ description: |
 ## Plan Mode: Decision & Constraint Recording
 
 When including decisions or constraints in your plan, use the following format.
-They will be auto-detected on ExitPlanMode (Claude Code) or `exit_plan_mode` approval (Grok Build)
-and registered via the hook queue in sqlew.
+They will be auto-detected on ExitPlanMode (Claude Code), `exit_plan_mode` approval (Grok Build),
+or Codex Plan mode session stop, and registered via the hook queue in sqlew.
 
-**Grok Build**: Write these blocks directly in `plan.md`. Hook injection is not available;
+**Grok Build**: Write these blocks directly in `plan.md`. Hook stdout injection is not available;
 this skill is the primary enforcement channel.
+
+**Codex**: Write these blocks in the plan output during collaboration Plan mode.
+Extraction runs from the session transcript on `Stop`.
 
 ---
 

@@ -12,7 +12,7 @@
         ]
       },
       {
-        "matcher": "Write|EnterPlanMode|enter_plan_mode",
+        "matcher": "Write|EnterPlanMode|enter_plan_mode|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -22,7 +22,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|shell_command|shell|exec_command",
         "hooks": [
           {
             "type": "command",
@@ -34,7 +34,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -82,6 +82,15 @@
             "type": "command",
             "command": "sqlew on-stop",
             "timeout": 30
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew on-exit-plan",
+            "timeout": 60
           }
         ]
       }

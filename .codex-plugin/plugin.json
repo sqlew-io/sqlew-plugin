@@ -1,0 +1,30 @@
+{
+  "name": "sqlew",
+  "version": "5.2.1",
+  "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and MCP for the sqlew server.",
+  "author": {
+    "name": "sqlew-io",
+    "email": "dev@sqlew.io"
+  },
+  "homepage": "https://github.com/sqlew-io/sqlew-plugin",
+  "repository": "https://github.com/sqlew-io/sqlew-plugin",
+  "keywords": [
+    "sqlew",
+    "mcp",
+    "plan-to-adr",
+    "decisions",
+    "constraints",
+    "context-sharing"
+  ],
+  "license": "Apache-2.0",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "sqlew",
+    "shortDescription": "Plan-to-ADR context sharing for Codex",
+    "longDescription": "Skills, hooks, and MCP integration for sqlew decision/constraint management with automatic Plan-to-ADR extraction.",
+    "developerName": "sqlew-io",
+    "category": "Development"
+  }
+}

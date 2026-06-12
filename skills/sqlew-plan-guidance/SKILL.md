@@ -54,6 +54,21 @@ When writing a plan in Grok Build (`/plan` or `enter_plan_mode`):
 
 ---
 
+## Codex Notes (v5.2.1+)
+
+Install via `codex plugin marketplace add sqlew-io/sqlew-plugin` and `codex plugin install sqlew`.
+Trust bundled hooks with `/hooks` on first use.
+
+When writing a plan in Codex (`/plan` or Shift+Tab, requires `[features] collaboration_modes = true`):
+1. MUST search related context (suggest) BEFORE planning
+2. `UserPromptSubmit` hook injects plan enforcement (unlike Grok)
+3. Fill in `### 📌 Decision:` / `### 🚫 Constraint:` blocks in the plan output
+4. Patterns are extracted on session `Stop` from the Codex rollout transcript
+
+**Hook coverage caveat**: Codex may not fire hooks for every `apply_patch` call ([openai/codex#16732](https://github.com/openai/codex/issues/16732)). Shell-based workflows (`shell_command`) and `UserPromptSubmit` hooks are the reliable automation path today.
+
+---
+
 ## Automatic Integration (with sqlew-plugin)
 
 With the sqlew-plugin installed, everything is **automatic**:

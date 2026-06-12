@@ -1,0 +1,33 @@
+{
+  "name": "sqlew-plugin",
+  "owner": {
+    "name": "sqlew-io",
+    "email": "dev@sqlew.io"
+  },
+  "metadata": {
+    "description": "Context sharing for AI agents with Plan-to-ADR integration",
+    "version": "5.2.1"
+  },
+  "plugins": [
+    {
+      "name": "sqlew",
+      "source": "./",
+      "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and MCP for the sqlew server.",
+      "version": "5.2.1",
+      "author": {
+        "name": "sqlew-io",
+        "email": "dev@sqlew.io"
+      },
+      "homepage": "https://github.com/sqlew-io/sqlew-plugin",
+      "repository": "https://github.com/sqlew-io/sqlew-plugin",
+      "category": "productivity",
+      "keywords": [
+        "sqlew",
+        "mcp",
+        "plan-to-adr",
+        "decisions",
+        "constraints"
+      ]
+    }
+  ]
+}
