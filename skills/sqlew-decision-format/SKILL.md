@@ -94,6 +94,7 @@ Record constraints using this format:
 ### 🚫 Constraint: [category]
 - **Rule**: Description of the constraint
 - **Priority**: critical | high | medium | low
+- **Reason**: Why this constraint exists (strongly recommended)
 - **Tags**: tag1, tag2 (optional)
 ```
 
@@ -104,11 +105,13 @@ Record constraints using this format:
 ### 🚫 Constraint: code-style
 - **Rule**: No inline styles, use CSS Modules
 - **Priority**: medium
+- **Reason**: Inline styles bypass the design token system and break theming
 - **Tags**: css, styling
 
 ### 🚫 Constraint: security
 - **Rule**: No hardcoded API keys, use environment variables
 - **Priority**: critical
+- **Reason**: Keys committed to git cannot be rotated without history rewrite
 - **Tags**: security, env
 
 ---
