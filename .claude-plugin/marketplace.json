@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Context sharing for AI agents with Plan-to-ADR integration",
-    "version": "5.2.1"
+    "version": "5.2.2"
   },
   "plugins": [
     {
       "name": "sqlew",
       "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and Agents for sqlew MCP server.",
-      "version": "5.2.1",
+      "version": "5.2.2",
       "source": {
         "source": "url",
         "url": "https://github.com/sqlew-io/sqlew-plugin.git"
