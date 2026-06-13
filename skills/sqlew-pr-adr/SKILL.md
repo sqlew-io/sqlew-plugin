@@ -57,23 +57,31 @@ This retrieves: **Rationale**, **Alternatives Considered**, **Tradeoffs**.
 
 ## Step 3: Group Files Under Decisions
 
-Organize the PR body so each decision/constraint lists its related files directly:
+Organize the PR body so each decision/constraint lists its related files directly.
+
+> **REQUIRED markers (hook-enforced):** The `sqlew pr-adr` PreToolUse hook blocks
+> `gh pr create` unless the body contains the literal heading `## Architecture Decisions`
+> **or** `## Other Changes`. Put every decision/constraint under `## Architecture Decisions`
+> as `###` subsections, and unattributed changes under `## Other Changes`. A PR whose
+> changes are all tied to ADRs still needs the `## Architecture Decisions` heading present.
 
 ```markdown
 ## Summary
 
 <!-- 1-3 bullet points: what this PR does overall -->
 
-## Decision: <title> (<reason>)
+## Architecture Decisions
+
+### Decision: <title> (<reason>)
 
 - `path/to/file1.ts`: what changed and why
 - `path/to/file2.ts`: what changed and why
 
-## Decision: <another title> (<reason>)
+### Decision: <another title> (<reason>)
 
 - `path/to/file3.ts`: what changed and why
 
-## Constraint: <rule description>
+### Constraint: <rule description>
 
 - `path/to/file4.ts`: what changed to comply
 
@@ -89,11 +97,12 @@ Organize the PR body so each decision/constraint lists its related files directl
 ```
 
 **Format rules:**
-- `## Decision: <title> (<reason>)` — decision key and rationale in one line
-- `## Constraint: <rule>` — constraint text in one line
+- `## Architecture Decisions` — REQUIRED umbrella heading whenever any ADR applies (hook marker)
+- `### Decision: <title> (<reason>)` — decision key and rationale in one line
+- `### Constraint: <rule>` — constraint text in one line
 - Each file entry: `- \`file\`: description` — what changed in that file
 - A file may appear under multiple decisions if relevant
-- `## Other Changes` — for files not tied to any ADR
+- `## Other Changes` — for files not tied to any ADR (also a valid hook marker)
 
 ---
 
@@ -106,7 +115,9 @@ gh pr create \
 ## Summary
 ...
 
-## Decision: <title> (<reason>)
+## Architecture Decisions
+
+### Decision: <title> (<reason>)
 - `file.ts`: description
 
 ## Other Changes
@@ -122,7 +133,7 @@ EOF
 
 ## Edge Cases
 
-- **No decisions found**: Use only `## Other Changes`. This is fine for pure refactors or chore PRs.
+- **No decisions found**: Use only `## Other Changes`. This is fine for pure refactors or chore PRs (it satisfies the hook marker on its own).
 - **Many decisions (>5)**: Include the top 5 by suggest score. Add a note: "See `/sqlew` for full decision history."
-- **Decisions without context**: Use `## Decision: <key> — <value>` without reason parenthetical.
-- **Mixed**: Some files under decisions, others under `## Other Changes`.
+- **Decisions without context**: Use `### Decision: <key> — <value>` without reason parenthetical.
+- **Mixed**: Some files under `### Decision:`/`### Constraint:` within `## Architecture Decisions`, others under `## Other Changes`.
