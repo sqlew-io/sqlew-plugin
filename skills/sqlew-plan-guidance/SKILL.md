@@ -39,6 +39,27 @@ suggest { action: "by_context", target: "constraint", text: "<topic>" }
 
 ---
 
+## REQUIRED: Conflict Handling (Plan Overturns an Existing Decision)
+
+If a decision found by the suggest search contradicts your new plan:
+
+1. **Never silently ignore it.** List the conflicting decision in the
+   "Related Context" section and state that the plan overturns it.
+2. **Read its context first**:
+   `decision { action: "get", key: "<key>", include_context: true }`
+   — the old rationale may encode a constraint (upstream bug, compliance,
+   past incident) your plan has not considered.
+3. **Same key, new direction**: register the new decision under the same key
+   (sqlew keeps history). Explain in **Rationale** why the previous decision
+   no longer applies.
+4. **Different key**: register the new decision, then deprecate the old one:
+   `decision { action: "set", key: "<old-key>", value: "Superseded by <new-key>", status: "deprecated" }`
+
+A stale decision that contradicts the code is worse than no decision — it
+becomes misinformation. Deprecating on reversal keeps the database trustworthy.
+
+---
+
 ## Grok Build Notes (v5.2+)
 
 **CRITICAL for Grok Build**: UserPromptSubmit hook stdout is **ignored** (passive hook).
