@@ -1,0 +1,36 @@
+# Merged into ~/.hermes/config.yaml on plugin enable.
+# Requires sqlew >= 5.3.0 (Hermes hook adapter).
+
+mcp_servers:
+  sqlew:
+    command: sqlew
+    args: []
+    env: {}
+
+hooks:
+  pre_tool_call:
+    - matcher: "terminal"
+      command: "sqlew pr-adr"
+      timeout: 10
+    - matcher: "write_file|patch"
+      command: "sqlew track-plan"
+      timeout: 30
+    - matcher: "delegate_task"
+      command: "sqlew suggest"
+      timeout: 30
+  post_tool_call:
+    - matcher: "write_file|patch"
+      command: "sqlew save"
+      timeout: 30
+    - matcher: "todo"
+      command: "sqlew check-completion"
+      timeout: 30
+  pre_llm_call:
+    - command: "sqlew on-prompt"
+      timeout: 10
+  on_session_start:
+    - command: "sqlew on-session-start"
+      timeout: 30
+  subagent_stop:
+    - command: "sqlew on-subagent-stop"
+      timeout: 30

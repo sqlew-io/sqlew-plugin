@@ -1,0 +1,6 @@
+manifest_version: 1
+name: sqlew
+version: "5.3.0"
+description: "Plan-to-ADR integration for sqlew — MCP server registration, shell hooks, and planning skills for Hermes (Claude Code / Nous)."
+author: "sqlew-io"
+kind: standalone
