@@ -166,7 +166,7 @@ hermes plugins enable sqlew
 
 ## Version
 
-Current version: **5.3.0** (pairs with sqlew MCP server >= 5.3.0 for Hermes support).
+Current version: **5.3.1** (pairs with sqlew MCP server >= 5.3.0 for Hermes support).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

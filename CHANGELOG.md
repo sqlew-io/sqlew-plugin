@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.3.1] - 2026-06-29
+
+### Changed
+
+- **Version alignment** — Bumped plugin manifests to 5.3.1 to track the sqlew MCP server 5.3.1 release. No plugin code changes.
+
+### Notes
+
+sqlew MCP server 5.3.1 adds tool-call-level project resolution for desktop AI agents (Claude Desktop, Hermes Desktop): a per-call `_sqlew_project` parameter (root/name/ref) and a new `project` tool (`current`/`resolve`/`list`/`validate`). These are exposed automatically via dynamic MCP tool discovery — no plugin change is required to use them. The minimum sqlew requirement remains `>= 5.3.0`; install `sqlew@5.3.1` to use the desktop project features.
+
+---
+
 ## [5.3.0] - 2026-06-27
 
 ### Added
