@@ -154,7 +154,8 @@ hermes plugins enable sqlew
 | Event | Action | Description |
 |-------|--------|-------------|
 | PreToolUse (Task) | `sqlew suggest` | Suggests related decisions before task execution |
-| PreToolUse (Write\|EnterPlanMode\|apply_patch) | `sqlew track-plan` | Tracks plan file changes (Grok: injects template into `plan.md`) |
+| PreToolUse (Write\|write\|search_replace\|EnterPlanMode\|ExitPlanMode\|apply_patch) | `sqlew track-plan` | Tracks plans; Grok injects template; Grok exit_plan_mode gate if no filled 📌/🚫 |
+| PostToolUse (Edit\|Write\|write\|search_replace\|apply_patch) | `sqlew track-plan` | Grok: re-injects plan.md template if overwritten |
 | PreToolUse (Bash\|shell_command\|shell) | `sqlew pr-adr` | Blocks `gh pr create` without ADR markers |
 | PostToolUse (ExitPlanMode\|exit_plan_mode) | `sqlew on-exit-plan` | Extracts decisions from plan on exit |
 | PostToolUse (Edit\|Write\|apply_patch) | `sqlew save` | Auto-saves decisions from edited files |
@@ -166,7 +167,7 @@ hermes plugins enable sqlew
 
 ## Version
 
-Current version: **5.3.1** (pairs with sqlew MCP server >= 5.3.0 for Hermes support).
+Current version: **5.3.2** (pairs with sqlew MCP server >= 5.3.0 for Hermes support; Grok multi-trigger plan template needs sqlew CLI with file-injection + exit gate).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

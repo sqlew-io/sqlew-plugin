@@ -13,7 +13,9 @@ They will be auto-detected on ExitPlanMode (Claude Code), `exit_plan_mode` appro
 or Codex Plan mode session stop, and registered via the hook queue in sqlew.
 
 **Grok Build**: Write these blocks directly in `plan.md`. Hook stdout injection is not available;
-this skill is the primary enforcement channel.
+sqlew seeds a template section on `plan.md` via file side-effects (enter plan / prompt / post-edit).
+Approving the plan without filled blocks is denied by default (`hooks.grok_require_patterns`).
+This skill remains the reference for field meanings and what to record.
 
 **Codex**: Write these blocks in the plan output during collaboration Plan mode.
 Extraction runs from the session transcript on `Stop`.

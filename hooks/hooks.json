@@ -12,7 +12,7 @@
         ]
       },
       {
-        "matcher": "Write|EnterPlanMode|enter_plan_mode|apply_patch",
+        "matcher": "Write|write|search_replace|EnterPlanMode|enter_plan_mode|ExitPlanMode|exit_plan_mode|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -34,11 +34,21 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|apply_patch",
+        "matcher": "Edit|Write|write|search_replace|apply_patch",
         "hooks": [
           {
             "type": "command",
             "command": "sqlew save",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|write|search_replace|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sqlew track-plan",
             "timeout": 30
           }
         ]

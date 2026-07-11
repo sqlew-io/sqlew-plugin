@@ -60,18 +60,23 @@ becomes misinformation. Deprecating on reversal keeps the database trustworthy.
 
 ---
 
-## Grok Build Notes (v5.2+)
+## Grok Build Notes (v5.2+ / multi-trigger template v5.5+)
 
-**CRITICAL for Grok Build**: UserPromptSubmit hook stdout is **ignored** (passive hook).
-Plan mode guidance is delivered via **this skill** and `sqlew-decision-format`, not hook injection.
+**CRITICAL for Grok Build**: UserPromptSubmit hook **stdout** is ignored (passive hook).
+Format guidance is delivered via **this skill** and `sqlew-decision-format`.
+The 📌/🚫 **template block** is written to `plan.md` as a file side-effect (not stdout).
 
 When writing a plan in Grok Build (`/plan` or `enter_plan_mode`):
 1. MUST search related context (suggest) BEFORE planning
-2. Decision/Constraint template is **auto-appended to plan.md** on `enter_plan_mode` (file injection via hook)
-3. Fill in the template placeholders before approving the plan
+2. Decision/Constraint template is **auto-maintained on plan.md** via multi-trigger hooks:
+   - `enter_plan_mode` PreToolUse
+   - `UserPromptSubmit` while plan mode is Active/Pending (`plan_mode.json`)
+   - PostToolUse after `plan.md` edits (re-appends if a full rewrite wiped the section)
+3. Fill in the template placeholders (or write real 📌/🚫 blocks) before approving the plan
 4. Patterns are auto-extracted on `exit_plan_mode` approval → queue → shared DB
+5. **Exit gate**: approving with only empty template placeholders is **denied**. Fill real values, or set `- **Value**: N/A` / `- **Rule**: N/A` if nothing to record. Disable with `hooks.grok_require_patterns = false` in config.toml
 
-**Note**: `/plan` (Shift+Tab) without `enter_plan_mode` tool may skip file injection until the agent calls `enter_plan_mode`. Use `/sqlew-decision-format` as fallback.
+**Note**: If the template section is missing, re-save `plan.md` or send another prompt in plan mode so hooks re-seed it. Use `/sqlew-decision-format` if you need the field reference. If `exit_plan_mode` is denied, add filled 📌/🚫 blocks and try again.
 
 ---
 

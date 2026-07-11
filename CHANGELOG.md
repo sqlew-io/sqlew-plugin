@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.3.2] - 2026-07-11
+
+### Fixed
+
+**Grok Build Plan-to-ADR reliability** (requires matching sqlew CLI with multi-trigger file injection)
+
+- **`hooks/hooks.json`** — Expand `track-plan` matchers for Grok tools (`write`, `search_replace`) and wire:
+  - PreToolUse: `EnterPlanMode` / `ExitPlanMode` (exit gate when `hooks.grok_require_patterns` is true)
+  - PostToolUse: re-run `track-plan` after plan.md edits so template wipe is repaired
+- **`sqlew-plan-guidance` / `sqlew-decision-format` skills** — Document multi-trigger plan.md template seeding (`enter_plan_mode`, plan-mode `UserPromptSubmit`, post-edit re-inject) and the exit gate / N/A escape hatch
+- **Hermes skills** — Synced from root `skills/` via release process
+
+### Notes
+
+Template injection and `exit_plan_mode` deny are implemented in the **sqlew** CLI (`track-plan`, `on-prompt`). This plugin release only updates hook wiring and skill docs. Install/update both:
+
+```bash
+npm i -g sqlew   # CLI with Grok multi-trigger inject + exit gate
+grok plugin install sqlew-io/sqlew-plugin --trust
+grok plugin update
+```
+
+---
+
 ## [5.3.1] - 2026-06-29
 
 ### Changed
