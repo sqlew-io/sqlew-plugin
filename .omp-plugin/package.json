@@ -1,0 +1,10 @@
+{
+  "name": "sqlew-omp",
+  "version": "5.4.0",
+  "private": true,
+  "type": "module",
+  "description": "sqlew ADR hooks for oh-my-pi (omp) — session context injection + Plan-to-ADR",
+  "omp": {
+    "extensions": ["./extensions/sqlew-omp.ts"]
+  }
+}
