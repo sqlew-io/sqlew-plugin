@@ -1,6 +1,6 @@
 # sqlew-plugin
 
-Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), and **Hermes** (v5.3.0+).
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), and **oh-my-pi (omp)** (v5.4.0+).
 
 ## Features
 
@@ -104,6 +104,37 @@ hermes plugins remove sqlew
 ```
 
 Removes the plugin from `~/.hermes/plugins/`. Merged `config.yaml` entries and copied skills are not removed automatically — edit `~/.hermes/config.yaml` and delete `~/.hermes/skills/sqlew-*` if you want a full cleanup.
+
+### oh-my-pi (omp)
+
+Requires sqlew MCP server **>= 5.3.6** with the `sqlew/hooks` export. Uses an in-process Extension (not shell hooks).
+
+**Install (user-persistent, from GitHub):**
+
+```bash
+npm i -g sqlew
+omp plugin install github:sqlew-io/sqlew-plugin
+omp plugin list
+```
+
+Loads:
+- Extension: `.omp-plugin/extensions/sqlew-omp.ts` (via root `package.json` `omp.extensions`)
+- Skills: `skills/sqlew-*`
+- MCP fragment: `.mcp.json` (if project does not already register sqlew)
+
+**Uninstall:**
+
+```bash
+omp plugin uninstall sqlew-omp
+```
+
+**Local development:**
+
+```bash
+omp plugin install ./sqlew-plugin
+# or one-shot:
+omp --extension ./sqlew-plugin/.omp-plugin
+```
 
 **Local development:**
 

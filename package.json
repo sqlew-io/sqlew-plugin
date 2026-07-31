@@ -1,0 +1,15 @@
+{
+  "name": "sqlew-omp",
+  "version": "5.4.0",
+  "private": true,
+  "type": "module",
+  "description": "sqlew ADR automation for oh-my-pi (omp) — session context injection + Plan-to-ADR Extension",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sqlew-io/sqlew-plugin.git"
+  },
+  "license": "Apache-2.0",
+  "omp": {
+    "extensions": ["./.omp-plugin/extensions/sqlew-omp.ts"]
+  }
+}
