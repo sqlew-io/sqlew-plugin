@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.4.1] - 2026-07-31
+
+### Changed
+
+**omp Extension: session-local plan_path (requires sqlew >= 5.3.7)**
+
+- Track `local://*-plan.md` via `resolveOmpPlanFsPath` + `sessionFile` (no default project `.sqlew/plans` copy)
+- `materializeOmpPlan` callers pass absolute `planPath`
+- Hooks load: bare `import('sqlew/hooks')` or filesystem resolve of `dist/hooks-api.js` (`resolve-sqlew-hooks.ts`)
+
+### Added
+
+- `resolve-sqlew-hooks.ts` (+ unit test) for multi-candidate hooks-api path resolution
+
+
 ## [5.3.2] - 2026-07-11
 
 ### Fixed
