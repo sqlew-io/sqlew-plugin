@@ -1,9 +1,10 @@
 /**
  * sqlew omp Extension — session context injection + Plan-to-ADR.
  *
- * Requires globally installed `sqlew` with `sqlew/hooks` export.
- * Hooks never open the DB; they read .sqlew/session-context.json and enqueue
- * via .sqlew/queue/pending.json (same rules as Claude/Hermes hooks).
+ * Loads hooks via bare `import('sqlew/hooks')` or filesystem resolve of
+ * `dist/hooks-api.js` (npm global / PATH / local checkout). Hooks never open
+ * the DB; they read .sqlew/session-context.json and enqueue via
+ * .sqlew/queue/pending.json (same rules as Claude/Hermes hooks).
  *
  * @since v5.4.0
  */
@@ -12,7 +13,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { basename } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
+import { resolveSqlewHooksApiPath } from './resolve-sqlew-hooks.ts';
 
 /**
  * Runtime-selected: `sqlew` is a global peer package, not a dep of this plugin
@@ -58,7 +61,8 @@ type SqlewHooks = {
   materializeOmpPlan: (opts: {
     projectPath: string;
     slug: string;
-    content: string;
+    content?: string;
+    planPath: string;
     sessionId?: string;
   }) => { planPath: string };
   trackOmpPlanFromPath: (opts: {
@@ -66,7 +70,12 @@ type SqlewHooks = {
     filePath: string;
     content?: string;
     sessionId?: string;
+    sessionFile?: string | null;
   }) => unknown;
+  resolveOmpPlanFsPath: (
+    filePath: string,
+    opts?: { sessionFile?: string | null; sessionId?: string | null },
+  ) => string | null;
   ENFORCEMENT_FULL: string;
   ENFORCEMENT_SHORT: string;
 };
@@ -97,6 +106,7 @@ type HandlerCtx = {
 type State = {
   projectPath: string;
   sessionId: string | undefined;
+  sessionFile: string | undefined;
   sessionContextInjected: boolean;
   planMode: boolean;
   enforcementShown: boolean;
@@ -181,11 +191,11 @@ function detectPlanMode(
   }
   return false;
 }
-
 function trackModeChangePlanFile(
   hooks: SqlewHooks,
   projectPath: string,
   sessionId: string | undefined,
+  sessionFile: string | undefined,
   ctx: HandlerCtx,
 ): void {
   try {
@@ -194,11 +204,23 @@ function trackModeChangePlanFile(
       const entry = branch[i];
       if (entry?.type !== 'mode_change') continue;
       const planFile = entry.data?.planFile ?? entry.planFile;
-      if (planFile && existsSync(planFile)) {
+      if (!planFile) return;
+      const abs =
+        hooks.resolveOmpPlanFsPath(planFile, { sessionFile, sessionId }) ??
+        (existsSync(planFile) ? planFile : null);
+      if (abs && existsSync(abs)) {
+        hooks.trackOmpPlanFromPath({
+          projectPath,
+          filePath: abs.startsWith('local://') ? planFile : abs,
+          sessionId,
+          sessionFile,
+        });
+      } else if (planFile.startsWith('local://')) {
         hooks.trackOmpPlanFromPath({
           projectPath,
           filePath: planFile,
           sessionId,
+          sessionFile,
         });
       }
       return;
@@ -281,19 +303,57 @@ function isImplementationPath(filePath: string | undefined): boolean {
 
 async function loadHooks(pi: ExtensionAPI): Promise<SqlewHooks | null> {
   try {
-    // Runtime-selected peer: global `sqlew` package (see type comment above).
     const mod: unknown = await import('sqlew/hooks');
-    return mod as SqlewHooks;
-  } catch (err) {
-    pi.logger?.error?.(`[sqlew-omp] failed to import sqlew/hooks: ${String(err)}`);
-    return null;
+    if (isSqlewHooksModule(mod)) {
+      pi.logger?.info?.('[sqlew-omp] loaded sqlew/hooks via package specifier');
+      return mod;
+    }
+  } catch {
+    // filesystem fallback
   }
+
+  const apiPath = resolveSqlewHooksApiPath(process.cwd());
+  if (apiPath) {
+    try {
+      const mod: unknown = await import(pathToFileURL(apiPath).href);
+      if (isSqlewHooksModule(mod)) {
+        pi.logger?.info?.(`[sqlew-omp] loaded sqlew/hooks from ${apiPath}`);
+        return mod;
+      }
+      pi.logger?.error?.(
+        `[sqlew-omp] module at ${apiPath} missing required hooks exports`,
+      );
+    } catch (err) {
+      pi.logger?.error?.(
+        `[sqlew-omp] failed to import hooks-api.js at ${apiPath}: ${String(err)}`,
+      );
+    }
+  }
+
+  pi.logger?.error?.(
+    '[sqlew-omp] failed to import sqlew/hooks: no resolvable sqlew install. ' +
+      'Install with `npm i -g sqlew` (needs dist/hooks-api.js / exports["./hooks"]), then restart omp.',
+  );
+  return null;
+}
+
+function isSqlewHooksModule(mod: unknown): mod is SqlewHooks {
+  if (!mod || typeof mod !== 'object') return false;
+  const m = mod as Record<string, unknown>;
+  return (
+    typeof m.processPlanPatterns === 'function' &&
+    typeof m.materializeOmpPlan === 'function' &&
+    typeof m.resolveOmpPlanFsPath === 'function' &&
+    typeof m.buildSessionContext === 'function' &&
+    typeof m.hasFilledPatterns === 'function'
+  );
 }
 
 export default function sqlewOmp(pi: ExtensionAPI): void {
   const state: State = {
     projectPath: '',
     sessionId: undefined,
+    sessionFile: undefined,
     sessionContextInjected: false,
     planMode: false,
     enforcementShown: false,
@@ -316,6 +376,14 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
   function refreshProject(ctx: HandlerCtx): void {
     state.projectPath = normalizePath(ctx.cwd);
     process.env.OMP_PROJECT_ROOT = state.projectPath;
+    try {
+      state.sessionFile =
+        typeof ctx.sessionManager?.getSessionFile === 'function'
+          ? ctx.sessionManager.getSessionFile()
+          : undefined;
+    } catch {
+      state.sessionFile = undefined;
+    }
     state.sessionId = resolveSessionId(ctx);
   }
 
@@ -395,7 +463,7 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
       if (!hooks || !state.projectPath) return;
 
       state.planMode = detectPlanMode(hctx, hooks, state.projectPath);
-      trackModeChangePlanFile(hooks, state.projectPath, state.sessionId, hctx);
+      trackModeChangePlanFile(hooks, state.projectPath, state.sessionId, state.sessionFile, hctx);
 
       if (!state.planMode) return;
 
@@ -475,6 +543,7 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
               filePath: tryPath,
               content: planContent,
               sessionId: state.sessionId,
+              sessionFile: state.sessionFile,
             });
           }
         }
@@ -512,12 +581,27 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           content = ensured.content;
           const slug = hooks.extractSlugFromOmpPlanPath(path) ?? 'plan';
           state.lastPlanSlug = slug;
-          hooks.materializeOmpPlan({
-            projectPath: state.projectPath,
-            slug,
-            content,
+          const abs = hooks.resolveOmpPlanFsPath(path, {
+            sessionFile: state.sessionFile,
             sessionId: state.sessionId,
           });
+          if (abs) {
+            hooks.materializeOmpPlan({
+              projectPath: state.projectPath,
+              slug,
+              content,
+              planPath: abs,
+              sessionId: state.sessionId,
+            });
+          } else {
+            hooks.trackOmpPlanFromPath({
+              projectPath: state.projectPath,
+              filePath: path,
+              content,
+              sessionId: state.sessionId,
+              sessionFile: state.sessionFile,
+            });
+          }
           if (ensured.injected) {
             return { input: { ...input, content } };
           }
@@ -525,17 +609,33 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           const slug = hooks.extractSlugFromOmpPlanPath(path) ?? 'plan';
           state.lastPlanSlug = slug;
           if (content) {
-            hooks.materializeOmpPlan({
-              projectPath: state.projectPath,
-              slug,
-              content,
+            const abs = hooks.resolveOmpPlanFsPath(path, {
+              sessionFile: state.sessionFile,
               sessionId: state.sessionId,
             });
+            if (abs) {
+              hooks.materializeOmpPlan({
+                projectPath: state.projectPath,
+                slug,
+                content,
+                planPath: abs,
+                sessionId: state.sessionId,
+              });
+            } else {
+              hooks.trackOmpPlanFromPath({
+                projectPath: state.projectPath,
+                filePath: path,
+                content,
+                sessionId: state.sessionId,
+                sessionFile: state.sessionFile,
+              });
+            }
           } else {
             hooks.trackOmpPlanFromPath({
               projectPath: state.projectPath,
               filePath: path,
               sessionId: state.sessionId,
+              sessionFile: state.sessionFile,
             });
           }
         }
@@ -599,17 +699,33 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           state.lastPlanSlug = slug;
           if (content !== undefined) {
             const ensured = hooks.ensureOmpPlanTemplate(content);
-            hooks.materializeOmpPlan({
-              projectPath: state.projectPath,
-              slug,
-              content: ensured.content,
+            const abs = hooks.resolveOmpPlanFsPath(path, {
+              sessionFile: state.sessionFile,
               sessionId: state.sessionId,
             });
+            if (abs) {
+              hooks.materializeOmpPlan({
+                projectPath: state.projectPath,
+                slug,
+                content: ensured.content,
+                planPath: abs,
+                sessionId: state.sessionId,
+              });
+            } else {
+              hooks.trackOmpPlanFromPath({
+                projectPath: state.projectPath,
+                filePath: path,
+                content: ensured.content,
+                sessionId: state.sessionId,
+                sessionFile: state.sessionFile,
+              });
+            }
           } else {
             hooks.trackOmpPlanFromPath({
               projectPath: state.projectPath,
               filePath: path,
               sessionId: state.sessionId,
+              sessionFile: state.sessionFile,
             });
           }
           return;
