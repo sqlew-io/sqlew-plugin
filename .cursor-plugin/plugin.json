@@ -1,7 +1,7 @@
 {
   "name": "sqlew",
-  "version": "5.4.3",
-  "description": "sqlew Plan-to-ADR for Cursor — Cloud Post-only hooks (research suggest + Write/afterFileEdit ADR draft).",
+  "version": "5.4.4",
+  "description": "sqlew Plan-to-ADR for Cursor — Cloud Post-only hooks (research suggest + Write enqueue + stop flush).",
   "author": {
     "name": "sqlew-io",
     "email": "dev@sqlew.io"

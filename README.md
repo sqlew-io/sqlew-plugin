@@ -1,12 +1,12 @@
 # sqlew-plugin
 
-Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud Post-only hooks, v5.4.3+).
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud Post-only hooks, v5.4.4+).
 
 ## Features
 
 - **Skills**: Auto-triggered guidance for Plan Mode decision/constraint formatting
 - **Hooks**: Automatic context suggestion and decision saving
-- **Cursor Cloud hooks** (experimental, **Post-only**): research suggest after `Grep` / `WebSearch` / `WebFetch`; ADR draft on `Write` / `afterFileEdit`
+- **Cursor Cloud hooks** (experimental, **Post-only**): research suggest after `Grep` / `WebSearch` / `WebFetch`; Write=enqueue + stop=flush for ADR drafts
 
 ## Installation
 
@@ -112,15 +112,17 @@ Plan-less **Post** hooks for **Cursor Cloud Agents** (project command hooks only
 
 ```text
 Post(Grep|WebSearch|WebFetch) → suggest inject (Related Context)
-Post(Write) / afterFileEdit   → ADR draft via sqlew save + MCP decision set (draft)
+Post(Write) / afterFileEdit   → enqueue draft to .sqlew/queue/pending.json (NO DB)
+stop                          → sqlew flush-queue / on-stop (upsert)
                               → optional short additional_context nudge if no draft yet
 ```
 
 | Path | Cloud | Role |
 |------|-------|------|
 | `postToolUse` Grep\|WebSearch\|WebFetch → `additional_context` | **YES** (validated) | Research suggest |
-| `postToolUse` Write → draft + optional nudge | intended | ADR approach 1 + 2 |
-| `afterFileEdit` → draft side-effect | intended | Approach 1 only (no model inject) |
+| `postToolUse` Write → enqueue + optional nudge | intended | ADR approach 1 + 2 (no per-Write MCP set) |
+| `afterFileEdit` → enqueue side-effect | intended | Approach 1 only (no model inject) |
+| `stop` → flush-queue / on-stop | intended | Upsert pending queue (Cloud without watcher) |
 | `beforeSubmitPrompt` (BSP) | **NO** (verifier 2026-10-21) | **Not for Cloud** — IDE leftover only |
 | `beforeMCPExecution` / `sessionStart` | N/A on managed Cloud | Do not depend on |
 
@@ -246,12 +248,13 @@ hermes plugins enable sqlew
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
 | Stop | `sqlew on-stop` / `sqlew on-exit-plan` | Cleanup; Codex plan extraction on stop |
 | Cursor `postToolUse` (Grep\|WebSearch\|WebFetch) | `.cursor/hooks/post-research-suggest.mjs` | Post-only Related Context via `additional_context` (Cloud) |
-| Cursor `postToolUse` (Write) / `afterFileEdit` | `.cursor/hooks/post-write-draft.mjs` | ADR draft (`sqlew save` + MCP draft) + optional nudge |
+| Cursor `postToolUse` (Write) / `afterFileEdit` | `.cursor/hooks/post-write-draft.mjs` | Enqueue draft to pending.json (no MCP set) + optional nudge |
+| Cursor `stop` | `.cursor/hooks/stop-flush.mjs` | `flush-queue` / `on-stop` upsert for Cloud |
 | Cursor `beforeSubmitPrompt` (optional) | `.cursor/hooks/before-submit-fallback.mjs` | **Not for Cloud** (IDE leftover; does not deliver) |
 
 ## Version
 
-Current version: **5.4.3** (Cursor Cloud Post-only research + Write draft; omp `tool_result` returns camel `additionalContext` when CLI/hooks emit it — peer [sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+ preferred; Hermes >= 5.3.0; Grok multi-trigger plan template needs matching CLI).
+Current version: **5.4.4** (Write=enqueue / Stop=flush; Cursor Cloud Post-only research + omp `tool_result` camel `additionalContext` — peer [sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+ preferred; Hermes >= 5.3.0; Grok multi-trigger plan template needs matching CLI).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

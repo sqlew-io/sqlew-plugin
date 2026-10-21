@@ -1,12 +1,15 @@
 /**
- * Approach 1: register / promote ADR draft after Write / afterFileEdit.
+ * Approach 1: register ADR draft after Write / afterFileEdit.
  *
- * 1) `sqlew save` — Claude-shaped PostToolUse stdin (plan-mode promote; no-op if no plan)
- * 2) MCP `decision` set status=draft — plan-less draft from file path (fail-open)
+ * Write = enqueue only (NO DB / NO MCP decision set):
+ *   1) `sqlew save` — plan-mode promote (already queue-only); fail-open
+ *   2) Local `enqueuePlanlessDraft` → `.sqlew/queue/pending.json`
+ *
+ * Upsert happens on Stop / QueueWatcher via flush-queue / on-stop.
  */
 
-import { runProcess, parseJsonLoose } from './process.mjs';
-import { draftKeyFromPath } from './paths.mjs';
+import { runProcess } from './process.mjs';
+import { enqueuePlanlessDraft } from './enqueue-draft.mjs';
 
 const SAVE_TIMEOUT_MS = Number(process.env.SQLEW_HOOK_SAVE_TIMEOUT_MS || 12000);
 
@@ -56,142 +59,43 @@ export async function runSqlewSaveCli(cursorInput, filePath, relPath) {
   }
 
   const text = `${result.stdout || ''}\n${result.stderr || ''}`;
-  const acted = /Implementation started|Queued: decisions|in_progress/i.test(text);
-  return { ok: true, acted, detail: acted ? 'promoted' : 'noop' };
+  // Plan promote OR future plan-less enqueue from core save
+  const acted =
+    /Implementation started|Queued: decisions|in_progress|enqueued|draft/i.test(text);
+  return { ok: true, acted, detail: acted ? 'promoted-or-enqueued' : 'noop' };
 }
 
 /**
- * Build draft value from path + optional edits snippet.
- * @param {string} relPath
- * @param {Record<string, unknown>} cursorInput
- */
-function buildDraftValue(relPath, cursorInput) {
-  const parts = [
-    `Auto-draft from Cursor Write/edit: \`${relPath}\`.`,
-    'Captured at first implementation write (plan-less). Refine via MCP decision set.',
-  ];
-
-  const edits = Array.isArray(cursorInput.edits) ? cursorInput.edits : null;
-  if (edits && edits.length > 0) {
-    const first = edits[0];
-    if (first && typeof first === 'object') {
-      const neu = /** @type {Record<string, unknown>} */ (first).new_string;
-      if (typeof neu === 'string' && neu.trim()) {
-        parts.push(`Snippet:\n\`\`\`\n${neu.trim().slice(0, 280)}\n\`\`\``);
-      }
-    }
-  }
-
-  return parts.join(' ').slice(0, 1200);
-}
-
-/**
- * Plan-less draft via MCP decision set (status: draft).
+ * Plan-less draft via local queue file (status: draft). No MCP / No DB.
  * @param {Record<string, unknown>} cursorInput
  * @param {string} relPath
- * @returns {Promise<{ ok: boolean, acted: boolean, key?: string, detail?: string }>}
+ * @returns {{ ok: boolean, acted: boolean, key?: string, detail?: string }}
  */
-export async function runSqlewDraftMcp(cursorInput, relPath) {
-  if (process.env.SQLEW_HOOK_DRAFT_MCP === '0') {
+export function runEnqueuePlanlessDraft(cursorInput, relPath) {
+  // Prefer new flag; honor legacy SQLEW_HOOK_DRAFT_MCP=0 as disable
+  if (
+    process.env.SQLEW_HOOK_DRAFT_ENQUEUE === '0' ||
+    process.env.SQLEW_HOOK_DRAFT_MCP === '0'
+  ) {
     return { ok: true, acted: false, detail: 'disabled' };
   }
 
   const cwd = typeof cursorInput.cwd === 'string' ? cursorInput.cwd : process.cwd();
-  const key = draftKeyFromPath(relPath);
-  const value = buildDraftValue(relPath, cursorInput);
-  const conversationId = String(
-    cursorInput.conversation_id || cursorInput.session_id || '',
-  ).slice(0, 40);
-
-  const frames = [
-    {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'sqlew-cursor-hooks', version: '0.1.0' },
-      },
-    },
-    { jsonrpc: '2.0', method: 'notifications/initialized' },
-    {
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: {
-        name: 'decision',
-        arguments: {
-          action: 'set',
-          key,
-          value,
-          status: 'draft',
-          tags: ['cursor', 'auto-draft', conversationId || 'session'].filter(Boolean),
-          agent: 'cursor-cloud-hook',
-        },
-      },
-    },
-  ];
-
-  const stdin = frames.map((f) => JSON.stringify(f)).join('\n') + '\n';
-  const result = await runProcess('sqlew', [], {
-    stdin,
-    cwd,
-    timeoutMs: Math.min(SAVE_TIMEOUT_MS, 10000),
-    env: { ...process.env, SQLEW_HOOK_CLIENT: 'cursor' },
-    earlyExit: (stdout) => {
-      for (const line of stdout.split(/\r?\n/)) {
-        const t = line.trim();
-        if (!t.startsWith('{')) continue;
-        try {
-          const msg = JSON.parse(t);
-          if (msg?.id === 2) return true;
-        } catch {
-          // ignore
-        }
-      }
-      return false;
-    },
+  return enqueuePlanlessDraft(cwd, relPath, {
+    input: cursorInput,
+    harness: 'cursor',
   });
-
-  let acted = false;
-  let detail = 'no-response';
-  for (const line of String(result.stdout || '').split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith('{')) continue;
-    try {
-      const msg = JSON.parse(trimmed);
-      if (msg?.id !== 2) continue;
-      if (msg.error) {
-        detail = String(msg.error.message || msg.error).slice(0, 120);
-        return { ok: false, acted: false, key, detail };
-      }
-      const textBlocks = msg?.result?.content;
-      let payload = msg?.result;
-      if (Array.isArray(textBlocks)) {
-        for (const block of textBlocks) {
-          if (block?.type === 'text' && typeof block.text === 'string') {
-            payload = parseJsonLoose(block.text) ?? block.text;
-          }
-        }
-      }
-      const obj =
-        payload && typeof payload === 'object'
-          ? /** @type {Record<string, unknown>} */ (payload)
-          : {};
-      acted = obj.success === true || obj.key === key || /success|set/i.test(String(payload));
-      detail = acted ? 'draft-set' : 'unexpected-shape';
-      return { ok: true, acted, key, detail };
-    } catch {
-      // continue
-    }
-  }
-
-  return { ok: false, acted: false, key, detail };
 }
 
 /**
- * Run approach-1 save + draft. Fail-open.
+ * @deprecated Use runEnqueuePlanlessDraft — MCP decision set removed from Write path.
+ */
+export function runSqlewDraftMcp(cursorInput, relPath) {
+  return runEnqueuePlanlessDraft(cursorInput, relPath);
+}
+
+/**
+ * Run approach-1 save + enqueue. Fail-open.
  * @param {Record<string, unknown>} cursorInput
  * @param {{ filePath: string, relPath: string }} paths
  * @returns {Promise<{ drafted: boolean, save: object, draft: object }>}
@@ -209,7 +113,7 @@ export async function runApproach1Draft(cursorInput, paths) {
   }
 
   try {
-    draft = await runSqlewDraftMcp(cursorInput, paths.relPath);
+    draft = runEnqueuePlanlessDraft(cursorInput, paths.relPath);
   } catch {
     draft = { ok: false, acted: false, detail: 'error' };
   }
@@ -228,7 +132,8 @@ export async function runApproach1Draft(cursorInput, paths) {
 export function approach2Prompt(relPath) {
   const pathBit = relPath ? ` (\`${relPath}\`)` : '';
   return (
-    `[sqlew] No ADR draft yet for this write${pathBit}. ` +
-    `If it encodes a Decision, call MCP \`decision\` action \`set\` with status \`draft\` (key + value).`
+    `[sqlew] No ADR draft queued yet for this write${pathBit}. ` +
+    `If it encodes a Decision, call MCP \`decision\` action \`set\` with status \`draft\` (key + value), ` +
+    `or ensure the Write enqueue path can write \`.sqlew/queue/pending.json\`.`
   );
 }

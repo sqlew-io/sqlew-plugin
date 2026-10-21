@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.4.4] - 2026-10-21
+
+### Changed
+
+**Write=enqueue / Stop=flush (no per-Write DB/MCP set)**
+
+- Cursor `postToolUse` Write / `afterFileEdit` → enqueue draft to `.sqlew/queue/pending.json` only (removed MCP `decision set` from Write path)
+- Cursor `stop` → `stop-flush.mjs` calls `sqlew flush-queue` (fallback `on-stop`) for Cloud without QueueWatcher
+- omp `tool_result` write/edit → same enqueue helper (`omp/auto/<rel>`); `session_stop` → flush-queue / on-stop
+- Docs ADR DB section: Write=enqueue, Stop/watcher=upsert
+
+### Notes
+
+- Peer: sqlew core `flush-queue` / plan-less `save` enqueue when available; plugin file helper works without them
+- Disable enqueue: `SQLEW_HOOK_DRAFT_ENQUEUE=0` (legacy `SQLEW_HOOK_DRAFT_MCP=0` still honored)
+
+---
+
 ## [5.4.3] - 2026-10-21
 
 ### Added
@@ -13,7 +31,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 **Cursor Cloud Post Write / afterFileEdit ADR draft (Post-only lock)**
 
 - `postToolUse` matcher `Write` + `afterFileEdit` → `post-write-draft.mjs`
-  - Approach 1: `sqlew save` (plan promote) + MCP `decision` `set` `status=draft` (plan-less)
+  - Approach 1: `sqlew save` (plan promote) + MCP `decision` `set` `status=draft` (plan-less) — superseded by 5.4.4 enqueue
   - Approach 2: short `additional_context` nudge on Write when no draft yet
   - Gates: noise paths, path dedupe, once-per-conversation; fail-open
 - Marker: `SQLEW_HOOK_MARKER_WRITE_<id>` for Write inject E2E

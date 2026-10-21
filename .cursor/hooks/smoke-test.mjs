@@ -13,10 +13,13 @@ import { rmSync } from 'node:fs';
 import { clearPendingInject } from './lib/io.mjs';
 import { isNoisePath, draftKeyFromPath, extractFilePath } from './lib/paths.mjs';
 import { approach2Prompt } from './lib/save-draft.mjs';
+import { getQueuePath, enqueuePlanlessDraft } from './lib/enqueue-draft.mjs';
+import { readFileSync, existsSync } from 'node:fs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const postHook = join(root, '.cursor/hooks/post-research-suggest.mjs');
 const writeHook = join(root, '.cursor/hooks/post-write-draft.mjs');
+const stopHook = join(root, '.cursor/hooks/stop-flush.mjs');
 const bspHook = join(root, '.cursor/hooks/before-submit-fallback.mjs');
 
 /**
@@ -53,6 +56,7 @@ try {
   rmSync(join(root, '.sqlew', 'cursor-bsp-injected'), { recursive: true, force: true });
   rmSync(join(root, '.sqlew', 'cursor-drafted'), { recursive: true, force: true });
   rmSync(join(root, '.sqlew', 'cursor-drafted-paths'), { recursive: true, force: true });
+  rmSync(join(root, '.sqlew', 'queue'), { recursive: true, force: true });
 } catch {
   // ignore
 }
@@ -170,11 +174,48 @@ try {
   console.log('ok: afterFileEdit marker mode empty');
 }
 
-// 8) Write approach-2 when CLI/MCP unavailable (fail-open nudge)
+// 8) Write enqueues draft to pending.json (no MCP / no DB)
 {
   try {
     rmSync(join(root, '.sqlew', 'cursor-drafted'), { recursive: true, force: true });
     rmSync(join(root, '.sqlew', 'cursor-drafted-paths'), { recursive: true, force: true });
+    rmSync(join(root, '.sqlew', 'queue'), { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+  const { code, stdout, stderr } = await runHook(
+    writeHook,
+    {
+      tool_name: 'Write',
+      tool_input: { path: 'src/feature/auth.ts', contents: 'export {}\n' },
+      cwd: root,
+      conversation_id: 'smoke-write-enqueue',
+    },
+    {
+      // sqlew missing is fine — enqueue is local file I/O
+      PATH: '/usr/bin:/bin',
+      SQLEW_HOOK_APPROACH2: '1',
+    },
+  );
+  assert.equal(code, 0, `write enqueue exit ${code}: ${stderr}`);
+  assert.equal(stdout.trim(), '{}', 'enqueue path emits no inject when drafted');
+  const queuePath = getQueuePath(root);
+  assert.ok(existsSync(queuePath), 'pending.json created');
+  const queue = JSON.parse(readFileSync(queuePath, 'utf8'));
+  assert.ok(Array.isArray(queue.items) && queue.items.length >= 1);
+  const item = queue.items.find((i) => i?.type === 'decision' && i?.action === 'create');
+  assert.ok(item);
+  assert.equal(item.data.key, 'cursor/auto/src/feature/auth.ts');
+  assert.equal(item.data.status, 'draft');
+  console.log('ok: postToolUse Write enqueue → pending.json');
+}
+
+// 8b) Write approach-2 when enqueue disabled (fail-open nudge)
+{
+  try {
+    rmSync(join(root, '.sqlew', 'cursor-drafted'), { recursive: true, force: true });
+    rmSync(join(root, '.sqlew', 'cursor-drafted-paths'), { recursive: true, force: true });
+    rmSync(join(root, '.sqlew', 'queue'), { recursive: true, force: true });
   } catch {
     // ignore
   }
@@ -187,14 +228,15 @@ try {
       conversation_id: 'smoke-write-a2',
     },
     {
-      // Force empty PATH so `sqlew` is missing → no draft → approach 2
       PATH: '/usr/bin:/bin',
       SQLEW_HOOK_APPROACH2: '1',
+      SQLEW_HOOK_DRAFT_ENQUEUE: '0',
+      SQLEW_HOOK_SAVE: '0',
     },
   );
   assert.equal(code, 0, `write approach2 exit ${code}: ${stderr}`);
   const parsed = JSON.parse(stdout.trim());
-  assert.match(String(parsed.additional_context || ''), /No ADR draft yet/);
+  assert.match(String(parsed.additional_context || ''), /No ADR draft queued yet/);
   assert.match(String(parsed.additional_context || ''), /decision/);
   console.log('ok: postToolUse Write approach-2 nudge');
 }
@@ -233,6 +275,29 @@ try {
   );
   assert.match(approach2Prompt('src/a.ts'), /src\/a\.ts/);
   console.log('ok: path gates and draft key');
+}
+
+// 11) enqueue helper dedupe + stop-flush fail-open
+{
+  try {
+    rmSync(join(root, '.sqlew', 'queue'), { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+  const first = enqueuePlanlessDraft(root, 'src/dup.ts', { harness: 'cursor' });
+  const second = enqueuePlanlessDraft(root, 'src/dup.ts', { harness: 'cursor' });
+  assert.equal(first.acted, true);
+  assert.equal(second.acted, false);
+  assert.equal(second.detail, 'duplicate-skipped');
+
+  const { code, stdout } = await runHook(
+    stopHook,
+    { status: 'completed', loop_count: 0, cwd: root, conversation_id: 'smoke-stop' },
+    { PATH: '/usr/bin:/bin' },
+  );
+  assert.equal(code, 0);
+  assert.equal(stdout.trim(), '{}');
+  console.log('ok: enqueue dedupe + stop-flush fail-open');
 }
 
 console.log('All smoke tests passed.');

@@ -4,12 +4,13 @@
  *
  * Product flow (Post-only, Cloud):
  *   Post(research) → suggest inject
- *   Post(Write/edit) → approach 1: sqlew save + MCP decision set draft
+ *   Post(Write/edit) → approach 1: enqueue only (sqlew save + pending.json; NO DB/MCP set)
  *                    → approach 2: short additional_context when no draft yet
+ *   stop             → flush-queue / on-stop (upsert)
  *
  * Event routing:
- *   - afterFileEdit → side-effect draft only (stdout cannot inject on this event)
- *   - postToolUse matcher Write → draft + optional additional_context
+ *   - afterFileEdit → side-effect enqueue only (stdout cannot inject on this event)
+ *   - postToolUse matcher Write → enqueue + optional additional_context
  *
  * Gates: noise paths, path dedupe (afterFileEdit+Write double-fire), once-per-conversation.
  * Fail-open everywhere.
@@ -107,7 +108,7 @@ async function main() {
     // Path dedupe after a prior attempt on this path (afterFileEdit + Write double-fire)
     if (conversationId && hasPathDraft(cwd, conversationId, relPath)) {
       // Sibling event already handled this path; if still no conversation draft,
-      // allow postToolUse approach-2 only (skip re-running save/MCP).
+      // allow postToolUse approach-2 only (skip re-running save/enqueue).
       const approach2Enabled = process.env.SQLEW_HOOK_APPROACH2 !== '0';
       if (event === 'postToolUse' && approach2Enabled) {
         if (conversationId) {
@@ -134,14 +135,14 @@ async function main() {
         markConversationDraft(cwd, conversationId, {
           key: result.draft.key,
           file: relPath,
-          via: result.save.acted ? 'save' : 'mcp-draft',
+          via: result.save.acted ? 'save' : 'enqueue-draft',
         });
       }
       emptyPostToolUse();
       return;
     }
 
-    // Approach 2 — postToolUse only, when no draft yet
+    // Approach 2 — postToolUse only, when enqueue did not act
     const approach2Enabled = process.env.SQLEW_HOOK_APPROACH2 !== '0';
     if (event === 'postToolUse' && approach2Enabled) {
       if (conversationId) {
