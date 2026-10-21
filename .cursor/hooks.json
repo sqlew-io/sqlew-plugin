@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": "node .cursor/hooks/post-research-suggest.mjs",
+        "matcher": "Grep|WebSearch|WebFetch",
+        "timeout": 15
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node .cursor/hooks/before-submit-fallback.mjs",
+        "matcher": "UserPromptSubmit",
+        "timeout": 5
+      }
+    ]
+  }
+}

@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.4.2] - 2026-10-21
+
+### Added
+
+**Cursor Cloud research hooks (experimental, plan-less)**
+
+- **`.cursor/hooks.json`** — Cloud Agents load project command hooks from this path
+  - Primary: `postToolUse` matcher `Grep|WebSearch|WebFetch` → `node .cursor/hooks/post-research-suggest.mjs`
+  - Optional: `beforeSubmitPrompt` → `before-submit-fallback.mjs` (gated; **Cloud does not deliver** `additional_context` here — verified 2026-10-21)
+- Hook scripts extract keywords from `tool_input`, call `sqlew suggest` (CLI) + MCP `suggest by_context`, return compact Related Context in `{ additional_context }` (score threshold, max 5, dedupe)
+- **Marker mode:** `SQLEW_HOOK_TEST_MARKER=1` injects `SQLEW_HOOK_MARKER_<uuid>` without DB (Cloud E2E)
+- **`.cursor-plugin/plugin.json`** — Cursor plugin manifest pointing at `.cursor/hooks.json` + skills + MCP
+- Smoke: `node .cursor/hooks/smoke-test.mjs`
+
+### Notes
+
+- Fail-open on CLI/MCP errors (empty context; never block the agent).
+- Cloud does not run `beforeMCPExecution` / `sessionStart`; do not depend on them.
+- No LLM project picking — uses cwd / existing sqlew project resolution only.
+
+---
+
 ## [5.4.1] - 2026-07-31
 
 ### Changed

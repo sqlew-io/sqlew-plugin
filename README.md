@@ -1,11 +1,12 @@
 # sqlew-plugin
 
-Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), and **oh-my-pi (omp)** (v5.4.0+).
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud research hooks, v5.4.2+).
 
 ## Features
 
 - **Skills**: Auto-triggered guidance for Plan Mode decision/constraint formatting
 - **Hooks**: Automatic context suggestion and decision saving
+- **Cursor Cloud hooks** (experimental): after `Grep` / `WebSearch` / `WebFetch`, inject a compact Related Context block via `postToolUse` → `additional_context`
 
 ## Installation
 
@@ -105,6 +106,47 @@ hermes plugins remove sqlew
 
 Removes the plugin from `~/.hermes/plugins/`. Merged `config.yaml` entries and copied skills are not removed automatically — edit `~/.hermes/config.yaml` and delete `~/.hermes/skills/sqlew-*` if you want a full cleanup.
 
+### Cursor (experimental — Cloud Agents)
+
+Plan-less context injection for **Cursor Cloud Agents** via project hooks (command-only).
+
+**Primary path (Cloud-validated):** `postToolUse` on `Grep` | `WebSearch` | `WebFetch` → `{ additional_context }` with a compact Related Context block from `sqlew suggest` / MCP `suggest by_context`.
+
+**Not relied on for Cloud:** `beforeSubmitPrompt` → `additional_context` (staff-recommended for IDE Agents Window; **Cloud verifier 2026-10-21: does not deliver**). Optional gated fallback remains for IDE best-effort only.
+
+Cloud also does **not** run `beforeMCPExecution` / `sessionStart` — do not depend on those.
+
+**Install into a repo Cloud Agents will clone** (project hooks only; `~/.cursor/hooks.json` is not loaded on Cloud):
+
+```bash
+# From a checkout of sqlew-plugin — copy hooks into your project root:
+cp -R .cursor /path/to/your-project/
+# Ensure sqlew CLI is on PATH in the Cloud environment (env setup / snapshot):
+npm i -g sqlew
+```
+
+Or open this plugin repo itself — it ships `.cursor/hooks.json` at the root.
+
+**Marker mode (Cloud E2E without DB):**
+
+```bash
+export SQLEW_HOOK_TEST_MARKER=1
+# optional stable id:
+export SQLEW_HOOK_MARKER_ID=cloud-e2e-1
+```
+
+After a matching Grep/WebSearch/WebFetch, the model should see `SQLEW_HOOK_MARKER_<id>` in injected context.
+
+**Smoke (local, no Cursor UI):**
+
+```bash
+node .cursor/hooks/smoke-test.mjs
+```
+
+**Knobs:** `SQLEW_HOOK_MIN_SCORE` (default 35), `SQLEW_HOOK_MAX_ITEMS` (default 5), `SQLEW_HOOK_SUGGEST_TIMEOUT_MS` (default 10000). Fail-open on CLI errors (empty `additional_context`).
+
+Optional Cursor plugin manifest: `.cursor-plugin/plugin.json` (skills + hooks + MCP). Cloud delivery still requires project `.cursor/hooks.json`.
+
 ### oh-my-pi (omp)
 
 Requires sqlew MCP server **>= 5.3.6** with the `sqlew/hooks` export. Uses an in-process Extension (not shell hooks).
@@ -195,10 +237,12 @@ hermes plugins enable sqlew
 | SessionStart | `sqlew on-session-start` | Session startup hooks |
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
 | Stop | `sqlew on-stop` / `sqlew on-exit-plan` | Cleanup; Codex plan extraction on stop |
+| Cursor `postToolUse` (Grep\|WebSearch\|WebFetch) | `.cursor/hooks/post-research-suggest.mjs` | Plan-less Related Context via `additional_context` (Cloud primary) |
+| Cursor `beforeSubmitPrompt` (optional) | `.cursor/hooks/before-submit-fallback.mjs` | Gated IDE fallback; **unreliable on Cloud** |
 
 ## Version
 
-Current version: **5.3.2** (pairs with sqlew MCP server >= 5.3.0 for Hermes support; Grok multi-trigger plan template needs sqlew CLI with file-injection + exit gate).
+Current version: **5.4.2** (Cursor Cloud research hooks experimental; omp Extension pairs with sqlew >= 5.3.7; Hermes >= 5.3.0; Grok multi-trigger plan template needs matching CLI).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

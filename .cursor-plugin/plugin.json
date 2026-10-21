@@ -1,0 +1,24 @@
+{
+  "name": "sqlew",
+  "version": "5.4.2",
+  "description": "sqlew Plan-to-ADR context sharing for Cursor — experimental Cloud-compatible research hooks (Grep/WebSearch/WebFetch → suggest).",
+  "author": {
+    "name": "sqlew-io",
+    "email": "dev@sqlew.io"
+  },
+  "homepage": "https://github.com/sqlew-io/sqlew-plugin",
+  "repository": "https://github.com/sqlew-io/sqlew-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sqlew",
+    "mcp",
+    "plan-to-adr",
+    "decisions",
+    "constraints",
+    "cursor-hooks",
+    "cloud-agents"
+  ],
+  "skills": "./skills/",
+  "hooks": "./.cursor/hooks.json",
+  "mcpServers": "./.mcp.json"
+}
