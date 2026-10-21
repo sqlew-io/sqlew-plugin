@@ -5,15 +5,15 @@
     "email": "dev@sqlew.io"
   },
   "metadata": {
-    "description": "Context sharing for AI agents with Plan-to-ADR integration (Claude Code, Codex, Grok Build, Hermes)",
-    "version": "5.3.1"
+    "description": "Context sharing for AI agents with Plan-to-ADR integration (Claude Code, Codex, Grok Build, Hermes, Cursor Cloud hooks)",
+    "version": "5.4.2"
   },
   "plugins": [
     {
       "name": "sqlew",
       "source": "./",
       "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and MCP for the sqlew server.",
-      "version": "5.3.1",
+      "version": "5.4.2",
       "author": {
         "name": "sqlew-io",
         "email": "dev@sqlew.io"

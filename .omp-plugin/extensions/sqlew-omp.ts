@@ -11,11 +11,15 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { basename } from 'node:path';
+import { basename, dirname, join, relative, isAbsolute } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { resolveSqlewHooksApiPath } from './resolve-sqlew-hooks.ts';
+import {
+  extractContextTextFromHookStdout,
+  ompAdditionalContextReturn,
+} from './omp-post-context.ts';
 
 /**
  * Runtime-selected: `sqlew` is a global peer package, not a dep of this plugin
@@ -78,6 +82,28 @@ type SqlewHooks = {
   ) => string | null;
   ENFORCEMENT_FULL: string;
   ENFORCEMENT_SHORT: string;
+  /**
+   * Optional (sqlew PR #136+ / hooks with Post context adapters).
+   * Builds harness-correct PostToolUse / tool_result JSON; omp uses top-level camelCase.
+   */
+  buildPostToolUseContextOutput?: (
+    additionalContext: string,
+    client?: string | null,
+  ) =>
+    | { additional_context: string }
+    | { continue: true; additionalContext: string }
+    | {
+        continue: true;
+        hookSpecificOutput: {
+          hookEventName: 'PostToolUse';
+          additionalContext: string;
+        };
+      }
+    | { continue: true };
+  sendPostToolUseContext?: (
+    additionalContext: string,
+    client?: string | null,
+  ) => void;
 };
 
 const OMP_EXIT_PLAN_DENY_REASON =
@@ -299,6 +325,61 @@ function isImplementationPath(filePath: string | undefined): boolean {
   if (normalized.endsWith('.json') && !normalized.includes('/src/')) return false;
   if (normalized.startsWith('local://') || isProposePath(filePath)) return false;
   return true;
+}
+
+type EnqueueDraftMod = {
+  enqueuePlanlessDraft: (
+    projectPath: string,
+    relPath: string,
+    opts?: {
+      input?: Record<string, unknown>;
+      tags?: string[];
+      harness?: string;
+    },
+  ) => { ok: boolean; acted: boolean; key: string; detail: string };
+};
+
+/** Shared Cursor queue helper (Write=enqueue; no DB). */
+async function loadEnqueueDraft(): Promise<EnqueueDraftMod | null> {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const helperPath = join(here, '../../.cursor/hooks/lib/enqueue-draft.mjs');
+    if (!existsSync(helperPath)) return null;
+    return (await import(pathToFileURL(helperPath).href)) as EnqueueDraftMod;
+  } catch {
+    return null;
+  }
+}
+
+function toProjectRelPath(filePath: string, projectPath: string): string {
+  try {
+    if (isAbsolute(filePath)) {
+      const rel = relative(projectPath, filePath);
+      if (rel && !rel.startsWith('..') && !isAbsolute(rel)) {
+        return normalizePath(rel);
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return normalizePath(filePath).replace(/^\.\//, '');
+}
+
+/** Cloud-safe flush: prefer flush-queue, else on-stop. Fail-open. */
+async function flushPendingQueue(projectPath: string, sessionId: string | undefined): Promise<void> {
+  const payload = {
+    client: 'omp',
+    cwd: projectPath,
+    session_id: sessionId,
+    hook_event_name: 'Stop',
+  };
+  const flush = await runSqlewHook('flush-queue', payload, projectPath);
+  if (flush.code === 0) return;
+  const errText = `${flush.stderr || ''}\n${flush.stdout || ''}`;
+  // Older sqlew without flush-queue → on-stop
+  if (/unknown|not found|invalid|unrecognized|Usage:/i.test(errText) || flush.code !== 0) {
+    await runSqlewHook('on-stop', payload, projectPath);
+  }
 }
 
 async function loadHooks(pi: ExtensionAPI): Promise<SqlewHooks | null> {
@@ -744,7 +825,22 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
             tool_name: mapToolName(toolName),
             tool_input: { file_path: path, ...input },
           };
-          void runSqlewHook('save', payload, state.projectPath);
+          // Plan promote via save (queue-only). Plan-less: enqueue draft (NO MCP set).
+          const { stdout } = await runSqlewHook('save', payload, state.projectPath);
+          try {
+            const enqueue = await loadEnqueueDraft();
+            if (enqueue) {
+              const rel = toProjectRelPath(path, state.projectPath);
+              enqueue.enqueuePlanlessDraft(state.projectPath, rel, {
+                input: { session_id: state.sessionId, ...input },
+                harness: 'omp',
+              });
+            }
+          } catch {
+            // fail-open
+          }
+          const fromCli = extractContextTextFromHookStdout(stdout);
+          return ompAdditionalContextReturn(hooks, fromCli);
         }
         return;
       }
@@ -758,7 +854,13 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           tool_name: 'TodoWrite',
           tool_input: input,
         };
-        void runSqlewHook('check-completion', payload, state.projectPath);
+        const { stdout } = await runSqlewHook(
+          'check-completion',
+          payload,
+          state.projectPath,
+        );
+        const fromCli = extractContextTextFromHookStdout(stdout);
+        return ompAdditionalContextReturn(hooks, fromCli);
       }
     } catch (err) {
       pi.logger?.error?.(`[sqlew-omp] tool_result: ${String(err)}`);
@@ -778,6 +880,9 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           pi.logger?.info?.(`[sqlew-omp] ${result.confirmationMessage}`);
         }
       }
+
+      // Write=enqueue; stop=flush (Cloud / no QueueWatcher)
+      await flushPendingQueue(state.projectPath, state.sessionId);
     } catch (err) {
       pi.logger?.error?.(`[sqlew-omp] session_stop: ${String(err)}`);
     }

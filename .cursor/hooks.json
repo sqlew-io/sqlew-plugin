@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": "node .cursor/hooks/post-research-suggest.mjs",
+        "matcher": "Grep|WebSearch|WebFetch",
+        "timeout": 15
+      },
+      {
+        "command": "node .cursor/hooks/post-write-draft.mjs",
+        "matcher": "Write",
+        "timeout": 20
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/post-write-draft.mjs",
+        "timeout": 20
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/stop-flush.mjs",
+        "timeout": 25
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node .cursor/hooks/before-submit-fallback.mjs",
+        "matcher": "UserPromptSubmit",
+        "timeout": 5
+      }
+    ]
+  }
+}

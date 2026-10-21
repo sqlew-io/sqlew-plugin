@@ -6,6 +6,73 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.4.4] - 2026-10-21
+
+### Changed
+
+**Write=enqueue / Stop=flush (no per-Write DB/MCP set)**
+
+- Cursor `postToolUse` Write / `afterFileEdit` → enqueue draft to `.sqlew/queue/pending.json` only (removed MCP `decision set` from Write path)
+- Cursor `stop` → `stop-flush.mjs` calls `sqlew flush-queue` (fallback `on-stop`) for Cloud without QueueWatcher
+- omp `tool_result` write/edit → same enqueue helper (`omp/auto/<rel>`); `session_stop` → flush-queue / on-stop
+- Docs ADR DB section: Write=enqueue, Stop/watcher=upsert
+
+### Notes
+
+- Peer: sqlew core `flush-queue` / plan-less `save` enqueue when available; plugin file helper works without them
+- Disable enqueue: `SQLEW_HOOK_DRAFT_ENQUEUE=0` (legacy `SQLEW_HOOK_DRAFT_MCP=0` still honored)
+
+---
+
+## [5.4.3] - 2026-10-21
+
+### Added
+
+**Cursor Cloud Post Write / afterFileEdit ADR draft (Post-only lock)**
+
+- `postToolUse` matcher `Write` + `afterFileEdit` → `post-write-draft.mjs`
+  - Approach 1: `sqlew save` (plan promote) + MCP `decision` `set` `status=draft` (plan-less) — superseded by 5.4.4 enqueue
+  - Approach 2: short `additional_context` nudge on Write when no draft yet
+  - Gates: noise paths, path dedupe, once-per-conversation; fail-open
+- Marker: `SQLEW_HOOK_MARKER_WRITE_<id>` for Write inject E2E
+- Docs: Post-only product path; BSP explicitly **not for Cloud**
+
+**omp Extension: Post `tool_result` additionalContext**
+
+- Await `sqlew save` / `check-completion` and return `{ additionalContext }` (camel top-level) instead of discarding stdout
+- Prefer `buildPostToolUseContextOutput(..., 'omp')` from `sqlew/hooks` when present ([sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+); fallback parses CLI stdout / returns text on older peers
+- Helpers + tests: `omp-post-context.ts`
+
+### Notes
+
+- Hermes remains Skill-only for suggest/ADR (no Post inject chase).
+- Shared `lib/process.mjs` for CLI/MCP spawn.
+- omp Post inject peer: sqlew with `buildPostToolUseContextOutput` on `sqlew/hooks` (documented in `.omp-plugin/README.md`).
+
+---
+
+## [5.4.2] - 2026-10-21
+
+### Added
+
+**Cursor Cloud research hooks (experimental, plan-less)**
+
+- **`.cursor/hooks.json`** — Cloud Agents load project command hooks from this path
+  - Primary: `postToolUse` matcher `Grep|WebSearch|WebFetch` → `node .cursor/hooks/post-research-suggest.mjs`
+  - Optional: `beforeSubmitPrompt` → `before-submit-fallback.mjs` (gated; **Cloud does not deliver** `additional_context` here — verified 2026-10-21)
+- Hook scripts extract keywords from `tool_input`, call `sqlew suggest` (CLI) + MCP `suggest by_context`, return compact Related Context in `{ additional_context }` (score threshold, max 5, dedupe)
+- **Marker mode:** `SQLEW_HOOK_TEST_MARKER=1` injects `SQLEW_HOOK_MARKER_<uuid>` without DB (Cloud E2E)
+- **`.cursor-plugin/plugin.json`** — Cursor plugin manifest pointing at `.cursor/hooks.json` + skills + MCP
+- Smoke: `node .cursor/hooks/smoke-test.mjs`
+
+### Notes
+
+- Fail-open on CLI/MCP errors (empty context; never block the agent).
+- Cloud does not run `beforeMCPExecution` / `sessionStart`; do not depend on them.
+- No LLM project picking — uses cwd / existing sqlew project resolution only.
+
+---
+
 ## [5.4.1] - 2026-07-31
 
 ### Changed
