@@ -15,6 +15,8 @@ oh-my-pi (omp) Extension for [sqlew](https://github.com/sqlew-io/sqlew) ADR auto
 npm i -g sqlew   # version with `sqlew/hooks` export (5.4+)
 ```
 
+**Peer for Post `tool_result` inject:** sqlew that exports `buildPostToolUseContextOutput` / `sendPostToolUseContext` on `sqlew/hooks` ([sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+). Older sqlew still runs Plan-to-ADR side-effects; the Extension falls back to returning camelCase `additionalContext` from CLI stdout when present, or no-ops inject when stdout has none.
+
 Project should already discover the sqlew MCP server (`.mcp.json` or this bundle's `mcp.json`).
 
 ## Install
@@ -60,3 +62,5 @@ omp --extension /path/to/sqlew-plugin/.omp-plugin
 ## Architecture
 
 See mcp-sqlew `docs/HOOKS_GUIDE.md` (oh-my-pi section) and `docs/HARNESS_COMPATIBILITY.md`.
+
+**Post `tool_result`:** `save` / `check-completion` CLI stdout is awaited (not discarded). When the CLI emits context text, the Extension returns `{ additionalContext }` (omp camel, top-level) — preferring `buildPostToolUseContextOutput(text, 'omp')` when the installed sqlew exports it.

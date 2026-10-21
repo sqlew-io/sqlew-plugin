@@ -6,6 +6,17 @@
         "command": "node .cursor/hooks/post-research-suggest.mjs",
         "matcher": "Grep|WebSearch|WebFetch",
         "timeout": 15
+      },
+      {
+        "command": "node .cursor/hooks/post-write-draft.mjs",
+        "matcher": "Write",
+        "timeout": 20
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/post-write-draft.mjs",
+        "timeout": 20
       }
     ],
     "beforeSubmitPrompt": [

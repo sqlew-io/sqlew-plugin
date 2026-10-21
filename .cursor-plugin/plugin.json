@@ -1,7 +1,7 @@
 {
   "name": "sqlew",
-  "version": "5.4.2",
-  "description": "sqlew Plan-to-ADR context sharing for Cursor — experimental Cloud-compatible research hooks (Grep/WebSearch/WebFetch → suggest).",
+  "version": "5.4.3",
+  "description": "sqlew Plan-to-ADR for Cursor — Cloud Post-only hooks (research suggest + Write/afterFileEdit ADR draft).",
   "author": {
     "name": "sqlew-io",
     "email": "dev@sqlew.io"

@@ -1,12 +1,12 @@
 # sqlew-plugin
 
-Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud research hooks, v5.4.2+).
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud Post-only hooks, v5.4.3+).
 
 ## Features
 
 - **Skills**: Auto-triggered guidance for Plan Mode decision/constraint formatting
 - **Hooks**: Automatic context suggestion and decision saving
-- **Cursor Cloud hooks** (experimental): after `Grep` / `WebSearch` / `WebFetch`, inject a compact Related Context block via `postToolUse` → `additional_context`
+- **Cursor Cloud hooks** (experimental, **Post-only**): research suggest after `Grep` / `WebSearch` / `WebFetch`; ADR draft on `Write` / `afterFileEdit`
 
 ## Installation
 
@@ -106,15 +106,23 @@ hermes plugins remove sqlew
 
 Removes the plugin from `~/.hermes/plugins/`. Merged `config.yaml` entries and copied skills are not removed automatically — edit `~/.hermes/config.yaml` and delete `~/.hermes/skills/sqlew-*` if you want a full cleanup.
 
-### Cursor (experimental — Cloud Agents)
+### Cursor (experimental — Cloud Agents, Post-only)
 
-Plan-less context injection for **Cursor Cloud Agents** via project hooks (command-only).
+Plan-less **Post** hooks for **Cursor Cloud Agents** (project command hooks only). Locked product flow:
 
-**Primary path (Cloud-validated):** `postToolUse` on `Grep` | `WebSearch` | `WebFetch` → `{ additional_context }` with a compact Related Context block from `sqlew suggest` / MCP `suggest by_context`.
+```text
+Post(Grep|WebSearch|WebFetch) → suggest inject (Related Context)
+Post(Write) / afterFileEdit   → ADR draft via sqlew save + MCP decision set (draft)
+                              → optional short additional_context nudge if no draft yet
+```
 
-**Not relied on for Cloud:** `beforeSubmitPrompt` → `additional_context` (staff-recommended for IDE Agents Window; **Cloud verifier 2026-10-21: does not deliver**). Optional gated fallback remains for IDE best-effort only.
-
-Cloud also does **not** run `beforeMCPExecution` / `sessionStart` — do not depend on those.
+| Path | Cloud | Role |
+|------|-------|------|
+| `postToolUse` Grep\|WebSearch\|WebFetch → `additional_context` | **YES** (validated) | Research suggest |
+| `postToolUse` Write → draft + optional nudge | intended | ADR approach 1 + 2 |
+| `afterFileEdit` → draft side-effect | intended | Approach 1 only (no model inject) |
+| `beforeSubmitPrompt` (BSP) | **NO** (verifier 2026-10-21) | **Not for Cloud** — IDE leftover only |
+| `beforeMCPExecution` / `sessionStart` | N/A on managed Cloud | Do not depend on |
 
 **Install into a repo Cloud Agents will clone** (project hooks only; `~/.cursor/hooks.json` is not loaded on Cloud):
 
@@ -135,7 +143,7 @@ export SQLEW_HOOK_TEST_MARKER=1
 export SQLEW_HOOK_MARKER_ID=cloud-e2e-1
 ```
 
-After a matching Grep/WebSearch/WebFetch, the model should see `SQLEW_HOOK_MARKER_<id>` in injected context.
+After Grep/WebSearch/WebFetch → `SQLEW_HOOK_MARKER_<id>`. After Write → `SQLEW_HOOK_MARKER_WRITE_<id>`.
 
 **Smoke (local, no Cursor UI):**
 
@@ -143,13 +151,13 @@ After a matching Grep/WebSearch/WebFetch, the model should see `SQLEW_HOOK_MARKE
 node .cursor/hooks/smoke-test.mjs
 ```
 
-**Knobs:** `SQLEW_HOOK_MIN_SCORE` (default 35), `SQLEW_HOOK_MAX_ITEMS` (default 5), `SQLEW_HOOK_SUGGEST_TIMEOUT_MS` (default 10000). Fail-open on CLI errors (empty `additional_context`).
+**Knobs:** `SQLEW_HOOK_MIN_SCORE` (35), `SQLEW_HOOK_MAX_ITEMS` (5), `SQLEW_HOOK_SUGGEST_TIMEOUT_MS` / `SQLEW_HOOK_SAVE_TIMEOUT_MS`, `SQLEW_HOOK_APPROACH2=0` (disable Write nudge), `SQLEW_HOOK_DRAFT_MCP=0` / `SQLEW_HOOK_SAVE=0`. Fail-open on CLI errors.
 
 Optional Cursor plugin manifest: `.cursor-plugin/plugin.json` (skills + hooks + MCP). Cloud delivery still requires project `.cursor/hooks.json`.
 
 ### oh-my-pi (omp)
 
-Requires sqlew MCP server **>= 5.3.6** with the `sqlew/hooks` export. Uses an in-process Extension (not shell hooks).
+Requires sqlew MCP server **>= 5.3.6** with the `sqlew/hooks` export. Uses an in-process Extension (not shell hooks). For Post `tool_result` → model `additionalContext`, prefer sqlew that exports `buildPostToolUseContextOutput` ([sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+); older peers keep side-effects and best-effort stdout parse.
 
 **Install (user-persistent, from GitHub):**
 
@@ -237,12 +245,13 @@ hermes plugins enable sqlew
 | SessionStart | `sqlew on-session-start` | Session startup hooks |
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
 | Stop | `sqlew on-stop` / `sqlew on-exit-plan` | Cleanup; Codex plan extraction on stop |
-| Cursor `postToolUse` (Grep\|WebSearch\|WebFetch) | `.cursor/hooks/post-research-suggest.mjs` | Plan-less Related Context via `additional_context` (Cloud primary) |
-| Cursor `beforeSubmitPrompt` (optional) | `.cursor/hooks/before-submit-fallback.mjs` | Gated IDE fallback; **unreliable on Cloud** |
+| Cursor `postToolUse` (Grep\|WebSearch\|WebFetch) | `.cursor/hooks/post-research-suggest.mjs` | Post-only Related Context via `additional_context` (Cloud) |
+| Cursor `postToolUse` (Write) / `afterFileEdit` | `.cursor/hooks/post-write-draft.mjs` | ADR draft (`sqlew save` + MCP draft) + optional nudge |
+| Cursor `beforeSubmitPrompt` (optional) | `.cursor/hooks/before-submit-fallback.mjs` | **Not for Cloud** (IDE leftover; does not deliver) |
 
 ## Version
 
-Current version: **5.4.2** (Cursor Cloud research hooks experimental; omp Extension pairs with sqlew >= 5.3.7; Hermes >= 5.3.0; Grok multi-trigger plan template needs matching CLI).
+Current version: **5.4.3** (Cursor Cloud Post-only research + Write draft; omp `tool_result` returns camel `additionalContext` when CLI/hooks emit it — peer [sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+ preferred; Hermes >= 5.3.0; Grok multi-trigger plan template needs matching CLI).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

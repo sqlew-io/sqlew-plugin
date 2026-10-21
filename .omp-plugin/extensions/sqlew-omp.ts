@@ -16,6 +16,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { resolveSqlewHooksApiPath } from './resolve-sqlew-hooks.ts';
+import {
+  extractContextTextFromHookStdout,
+  ompAdditionalContextReturn,
+} from './omp-post-context.ts';
 
 /**
  * Runtime-selected: `sqlew` is a global peer package, not a dep of this plugin
@@ -78,6 +82,28 @@ type SqlewHooks = {
   ) => string | null;
   ENFORCEMENT_FULL: string;
   ENFORCEMENT_SHORT: string;
+  /**
+   * Optional (sqlew PR #136+ / hooks with Post context adapters).
+   * Builds harness-correct PostToolUse / tool_result JSON; omp uses top-level camelCase.
+   */
+  buildPostToolUseContextOutput?: (
+    additionalContext: string,
+    client?: string | null,
+  ) =>
+    | { additional_context: string }
+    | { continue: true; additionalContext: string }
+    | {
+        continue: true;
+        hookSpecificOutput: {
+          hookEventName: 'PostToolUse';
+          additionalContext: string;
+        };
+      }
+    | { continue: true };
+  sendPostToolUseContext?: (
+    additionalContext: string,
+    client?: string | null,
+  ) => void;
 };
 
 const OMP_EXIT_PLAN_DENY_REASON =
@@ -744,7 +770,10 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
             tool_name: mapToolName(toolName),
             tool_input: { file_path: path, ...input },
           };
-          void runSqlewHook('save', payload, state.projectPath);
+          // Await save and surface Post context to omp (was: void + discard stdout).
+          const { stdout } = await runSqlewHook('save', payload, state.projectPath);
+          const fromCli = extractContextTextFromHookStdout(stdout);
+          return ompAdditionalContextReturn(hooks, fromCli);
         }
         return;
       }
@@ -758,7 +787,13 @@ export default function sqlewOmp(pi: ExtensionAPI): void {
           tool_name: 'TodoWrite',
           tool_input: input,
         };
-        void runSqlewHook('check-completion', payload, state.projectPath);
+        const { stdout } = await runSqlewHook(
+          'check-completion',
+          payload,
+          state.projectPath,
+        );
+        const fromCli = extractContextTextFromHookStdout(stdout);
+        return ompAdditionalContextReturn(hooks, fromCli);
       }
     } catch (err) {
       pi.logger?.error?.(`[sqlew-omp] tool_result: ${String(err)}`);

@@ -6,6 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.4.3] - 2026-10-21
+
+### Added
+
+**Cursor Cloud Post Write / afterFileEdit ADR draft (Post-only lock)**
+
+- `postToolUse` matcher `Write` + `afterFileEdit` → `post-write-draft.mjs`
+  - Approach 1: `sqlew save` (plan promote) + MCP `decision` `set` `status=draft` (plan-less)
+  - Approach 2: short `additional_context` nudge on Write when no draft yet
+  - Gates: noise paths, path dedupe, once-per-conversation; fail-open
+- Marker: `SQLEW_HOOK_MARKER_WRITE_<id>` for Write inject E2E
+- Docs: Post-only product path; BSP explicitly **not for Cloud**
+
+**omp Extension: Post `tool_result` additionalContext**
+
+- Await `sqlew save` / `check-completion` and return `{ additionalContext }` (camel top-level) instead of discarding stdout
+- Prefer `buildPostToolUseContextOutput(..., 'omp')` from `sqlew/hooks` when present ([sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+); fallback parses CLI stdout / returns text on older peers
+- Helpers + tests: `omp-post-context.ts`
+
+### Notes
+
+- Hermes remains Skill-only for suggest/ADR (no Post inject chase).
+- Shared `lib/process.mjs` for CLI/MCP spawn.
+- omp Post inject peer: sqlew with `buildPostToolUseContextOutput` on `sqlew/hooks` (documented in `.omp-plugin/README.md`).
+
+---
+
 ## [5.4.2] - 2026-10-21
 
 ### Added

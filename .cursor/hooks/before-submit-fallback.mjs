@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Optional beforeSubmitPrompt fallback for Cursor.
+ * Optional beforeSubmitPrompt fallback for Cursor — NOT for Cloud.
  *
- * Cloud Agents (2026-10-21 verifier): additional_context from this hook
- * does NOT reach the model. Kept as best-effort for IDE / future Cloud fixes.
+ * Product lock (2026-10-21): Post-only inject. Cloud verifier: additional_context
+ * from this hook does NOT reach the model (BSP_SEEN=no). Kept only as an IDE
+ * leftover; do not rely on it for Cloud Agents.
  *
  * Gating (avoid spamming every message):
  * - Only inject when `.sqlew/cursor-pending-inject.json` exists (written by
