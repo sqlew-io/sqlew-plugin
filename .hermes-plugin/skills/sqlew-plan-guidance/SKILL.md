@@ -1,14 +1,46 @@
 ---
 name: sqlew-plan-guidance
 description: |
-  REQUIRED workflow for plan mode with sqlew integration.
-  MUST search for related context before writing plans.
-  Invoke for suggest search steps, Related Context template, and queue monitoring.
+  Workflow for sqlew suggest + ADR with or without plan mode.
+  Plan mode is NOT required for suggest/ADR. Research hooks inject Related Context;
+  Write enqueues drafts; Stop flushes. Plan-mode ADR still works as before.
+  Invoke for suggest steps, Related Context template, queue monitoring, and Hermes /learn.
+---
+
+## Plan-less workflow (default)
+
+**Plan mode is no longer required** for suggest or ADR recording.
+
+Research and implementation create ADRs automatically on harnesses that support Post hooks:
+
+```text
+Research (Grep / WebSearch / WebFetch / tool_result)
+  → PostToolUse / tool_result injects Related Context (suggest)
+Write / Edit (implementation)
+  → enqueue draft to .sqlew/queue/pending.json  (NO DB yet)
+Stop / on-stop / flush-queue / QueueWatcher
+  → upsert pending items into the shared DB
+```
+
+| Phase | When | What |
+|-------|------|------|
+| Suggest inject | After research tools | Related Context from `sqlew suggest` |
+| Enqueue | After Write / Edit (gated) | Draft create → `.sqlew/queue/pending.json` |
+| Upsert | Stop / flush / QueueWatcher | DB register (Write=enqueue / Stop=flush) |
+
+**Cursor Cloud** (Post-only): `postToolUse` Grep|WebSearch|WebFetch → suggest; Write / `afterFileEdit` → enqueue; `stop` → flush.  
+**omp**: `tool_result` inject + write/edit enqueue; `session_stop` → flush.  
+**Claude Code / Grok Build / Codex**: shared `sqlew save` (enqueue when plan-less) + `sqlew on-stop` / flush.  
+**Hermes**: automatic Post inject is unavailable — use Skill via `/learn` (see Hermes Notes).
+
+**Plan-mode ADR creation still works as before** (📌/🚫 extraction on ExitPlanMode / exit_plan_mode / plan file write / Codex Stop). Use the sections below when you choose plan mode.
+
 ---
 
 ## REQUIRED: Suggest Search BEFORE Planning
 
 **CRITICAL**: Before writing any plan, you MUST search for related context.
+(In plan-less mode, research hooks often inject this for you — still run suggest if Related Context is missing.)
 
 **Step 1**: Extract keywords from the user's task (e.g., migration, auth, database)
 
@@ -90,14 +122,22 @@ hermes plugins install sqlew-io/sqlew-plugin/.hermes-plugin
 hermes plugins enable sqlew
 ```
 
-When writing a plan in Hermes (use the `plan` skill → `.hermes/plans/*.md`):
+**Hooks automatic trigger (Post research → suggest inject / Write → ADR enqueue) is unavailable on Hermes.** Do not expect Cursor/omp-style `additional_context` after tools.
 
-1. MUST search related context (suggest) BEFORE planning
+**Recommended:** create a Skill with `/learn` so the agent always suggests and records ADRs:
+
+```text
+/learn 「調査開始時にsqlewを使ってサジェストを取得し、実装前にADRをsqlewで記録することを義務付けて」
+```
+
+Plan mode is optional. When you do use plans (the `plan` skill → `.hermes/plans/*.md`):
+
+1. MUST search related context (suggest) BEFORE planning (or rely on your `/learn` Skill)
 2. `pre_llm_call` hook injects plan guidance every turn (FULL once, then SHORT)
 3. Fill in `### 📌 Decision:` / `### 🚫 Constraint:` blocks in the plan file
 4. Patterns are extracted on `write_file|patch` to `.hermes/plans/` via `track-plan` / `save`
 
-**Differences from Claude Code**: No `ExitPlanMode` event — extraction happens when the plan markdown is written, not on plan-mode exit. No `permission_mode: plan` — guidance is always injected via `pre_llm_call`.
+**Differences from Claude Code**: No `ExitPlanMode` event — extraction happens when the plan markdown is written, not on plan-mode exit. No `permission_mode: plan` — guidance is always injected via `pre_llm_call`. No automatic research Post inject — Skill/`/learn` covers suggest + ADR.
 
 ---
 
@@ -118,15 +158,19 @@ When writing a plan in Codex (`/plan` or Shift+Tab, requires `[features] collabo
 
 ## Automatic Integration (with sqlew-plugin)
 
-With the sqlew-plugin installed, everything is **automatic**:
+With the sqlew-plugin installed, plan-less and plan-mode paths both run:
 
 | Event | Hook | Action |
 |-------|------|--------|
-| User prompt submitted | UserPromptSubmit | Auto-inject plan mode enforcement (Claude Code only; Grok uses skills) |
+| Research tools (Grep / WebSearch / WebFetch / omp `tool_result`) | PostToolUse / tool_result | Inject Related Context (suggest) — plan mode not required |
+| Code written / edited | PostToolUse / afterFileEdit | **Enqueue** draft → `.sqlew/queue/pending.json` (Write=enqueue; no per-Write DB) |
+| Session stop | Stop / on-stop / flush-queue / session_stop | **Flush** pending queue → upsert DB (Stop=flush) |
+| User prompt submitted | UserPromptSubmit | Plan guidance (Claude Code / Codex; Grok uses skills) — optional plan mode |
 | Task tool called | PreToolUse | Auto-suggest related decisions |
-| Plan file written | PreToolUse | Auto-track with plan ID |
-| Code edited | PostToolUse | Auto-save decision (status: draft) |
-| ExitPlanMode | PostToolUse | Auto-extract 📌/🚫 patterns |
+| Plan file written | PreToolUse | Auto-track with plan ID (plan mode) |
+| ExitPlanMode / exit_plan_mode | PostToolUse | Auto-extract 📌/🚫 patterns (plan mode; still works) |
+
+Hermes: no automatic research/Write inject — use `/learn` Skill (see Hermes Notes).
 
 ## Manual Commands (Slash Command)
 
@@ -161,11 +205,11 @@ decision { action: "add_decision_context", key: "decision-key", rationale: "Why"
 
 ---
 
-## Queue Monitoring After Plan Mode
+## Queue Monitoring (plan-less flush + plan mode)
 
 ### When to Check
 
-After ExitPlanMode or when Plan-to-ADR processing completes, check for unprocessed items.
+After Stop / flush (plan-less Write=enqueue), after ExitPlanMode, or when Plan-to-ADR processing completes, check for unprocessed items.
 
 **Queue file locations:**
 - Pending: `.sqlew/queue/pending.json`

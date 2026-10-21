@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+**Docs: plan-less harness workflow messaging**
+
+- Plan mode is **not required** for ADR / suggest (Cursor, Claude Code, Grok Build, Codex, omp)
+- Research PostToolUse / `tool_result` → Related Context; Write=enqueue → `.sqlew/queue/pending.json`; Stop / on-stop / flush → upsert
+- Plan-mode ADR creation still documented as working as before
+- Hermes: hooks automatic trigger unavailable; recommend Skill via `/learn` (Japanese prompt in README / after-install / skills)
+- Updated: README, `skills/sqlew-plan-guidance`, `skills/sqlew-decision-format`, `.hermes-plugin/after-install.md`, `.omp-plugin/README.md`, synced Hermes/omp skill copies
+
+---
+
 ## [5.4.4] - 2026-10-21
 
 ### Changed

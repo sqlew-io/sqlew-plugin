@@ -4,8 +4,11 @@ oh-my-pi (omp) Extension for [sqlew](https://github.com/sqlew-io/sqlew) ADR auto
 
 ## Features
 
+- **Plan-less by default** — Plan mode is **not required** for suggest / ADR
+- **Post `tool_result` suggest inject** — Related Context via camelCase `additionalContext` (peer [sqlew#136](https://github.com/sqlew-io/sqlew/pull/136)+)
+- **Write=enqueue / Stop=flush** — write/edit enqueues drafts to `.sqlew/queue/pending.json`; `session_stop` runs flush-queue / on-stop (upsert)
 - **Session context injection** — recent decisions + active constraints at session start
-- **Plan mode guidance** — 📌/🚫 format reminders while planning
+- **Plan mode guidance** — 📌/🚫 format reminders while planning (optional; still works)
 - **Plan-to-ADR** — extract decisions/constraints on `xd://propose` / `/xdev/propose`
 - **save / check-completion / pr-adr / suggest** — CLI side-effect parity with other harnesses
 
@@ -64,3 +67,13 @@ omp --extension /path/to/sqlew-plugin/.omp-plugin
 See mcp-sqlew `docs/HOOKS_GUIDE.md` (oh-my-pi section) and `docs/HARNESS_COMPATIBILITY.md`.
 
 **Post `tool_result`:** `save` / `check-completion` CLI stdout is awaited (not discarded). When the CLI emits context text, the Extension returns `{ additionalContext }` (omp camel, top-level) — preferring `buildPostToolUseContextOutput(text, 'omp')` when the installed sqlew exports it.
+
+**Plan-less ADR (aligned with [sqlew-plugin#3](https://github.com/sqlew-io/sqlew-plugin/pull/3)):**
+
+```text
+tool_result (research / save) → additionalContext suggest when available
+write | edit                  → enqueue omp/auto/<rel> → pending.json  (NO DB)
+session_stop                  → flush-queue / on-stop → upsert
+```
+
+Plan-mode propose / 📌/🚫 extraction still works as before.

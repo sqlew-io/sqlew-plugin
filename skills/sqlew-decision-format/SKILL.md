@@ -1,12 +1,15 @@
 ---
 name: sqlew-decision-format
 description: |
-  REQUIRED format for decisions and constraints in plan mode.
-  Plans MUST use 📌 Decision / 🚫 Constraint markers for auto-extraction on ExitPlanMode.
+  REQUIRED format for decisions and constraints when using plan mode.
+  Plan mode is optional — research/Write hooks can create ADRs without a plan.
+  When you do write plans, MUST use 📌 Decision / 🚫 Constraint markers for auto-extraction.
   Invoke this skill when writing plans to get the exact template.
 ---
 
 ## Plan Mode: Decision & Constraint Recording
+
+**Plan mode is not required** for ADR/suggest. Plan-less harnesses inject Related Context after research and enqueue drafts on Write (Stop/flush upserts). Use this format when you **do** record decisions in a plan — plan-mode ADR creation still works as before.
 
 When including decisions or constraints in your plan, use the following format.
 They will be auto-detected on ExitPlanMode (Claude Code), `exit_plan_mode` approval (Grok Build),
