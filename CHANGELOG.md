@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+**Docs: Cursor Cloud Agents setup (hooks + `@sqlew/pg`)**
+
+- Plan-less ADR on Cursor Cloud needs **this plugin's** `.cursor/hooks.json` — MCP alone is not enough
+- Cloud MCP: per-repo `.cursor/mcp.json` → `npx -y @sqlew/pg`
+- Secrets: `SQLEW_DATABASE_URL` / `DATABASE_URL` from Cloud Environment Secrets
+- Project name: optional `SQLEW_PROJECT_NAME`; else git repo name; config last (**env > git > config**)
+- Brief Write=enqueue / Stop=flush / Post research inject (aligned with existing plan-less docs)
+- Updated: README Cursor section, `skills/sqlew-plan-guidance` (+ Hermes/omp copies), `.hermes-plugin/after-install.md`
+
 **Docs: plan-less harness workflow messaging**
 
 - Plan mode is **not required** for ADR / suggest (Cursor, Claude Code, Grok Build, Codex, omp)

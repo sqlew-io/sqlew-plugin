@@ -37,7 +37,7 @@ Or set `HERMES_ACCEPT_HOOKS=1`.
 
 ## Plan-less vs plan mode on Hermes
 
-**Plan mode is not required** for suggest / ADR. On Cursor, omp, Claude, Grok, and Codex, research hooks inject Related Context and Write enqueues drafts (Stop flushes). **Hermes cannot do that automatic Post-hook trigger** (`additional_context` / research inject after tools is unavailable).
+**Plan mode is not required** for suggest / ADR. On Cursor Cloud, that auto path needs **sqlew-plugin Cursor hooks** (`.cursor/hooks.json`) plus MCP `@sqlew/pg` via `.cursor/mcp.json` — MCP alone is not enough. On omp, Claude, Grok, and Codex, research hooks inject Related Context and Write enqueues drafts (Stop flushes). **Hermes cannot do that automatic Post-hook trigger** (`additional_context` / research inject after tools is unavailable).
 
 **Recommended:** create a Skill with `/learn` so suggest + ADR stay mandatory without relying on hooks:
 

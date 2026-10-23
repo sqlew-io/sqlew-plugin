@@ -7,7 +7,7 @@ Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP se
 - **Plan-less by default**: Plan mode is **not required** for suggest / ADR. Research tasks inject Related Context; Write enqueues drafts; Stop flushes (upsert). Plan-mode ADR still works as before.
 - **Skills**: Guidance for suggest, queue, and (optional) Plan Mode 📌/🚫 formatting
 - **Hooks**: Automatic context suggestion and decision enqueue/flush
-- **Cursor Cloud hooks** (experimental, **Post-only**): research suggest after `Grep` / `WebSearch` / `WebFetch`; Write=enqueue + stop=flush for ADR drafts
+- **Cursor Cloud hooks** (experimental, **Post-only**): plan-less ADR needs plugin `.cursor/hooks.json` (not MCP alone) + `@sqlew/pg` via `.cursor/mcp.json`; research suggest after `Grep` / `WebSearch` / `WebFetch`; Write=enqueue + stop=flush
 
 ## Plan-less harness workflow
 
@@ -134,12 +134,53 @@ Removes the plugin from `~/.hermes/plugins/`. Merged `config.yaml` entries and c
 
 ### Cursor (experimental — Cloud Agents, Post-only)
 
-**Plan mode is not required.** Plan-less **Post** hooks for **Cursor Cloud Agents** (project command hooks only). Locked product flow (aligned with [PR #3](https://github.com/sqlew-io/sqlew-plugin/pull/3)):
+**Plan mode is not required.** Plan-less ADR on **Cursor Cloud** needs **this plugin's Cursor hooks** (`.cursor/hooks.json`) — **MCP alone is not enough**. Hooks drive Post research inject, Write=enqueue, and Stop=flush.
+
+#### 1. MCP — `@sqlew/pg` per repo
+
+Cloud recipe: PostgreSQL-only package via **per-repo** `.cursor/mcp.json` (do not rely on a global MCP entry):
+
+```json
+{
+  "mcpServers": {
+    "sqlew": {
+      "command": "npx",
+      "args": ["-y", "@sqlew/pg"]
+    }
+  }
+}
+```
+
+Local desktops can keep `npm i -g sqlew` (full). See [sqlew scoped packages](https://github.com/sqlew-io/sqlew/blob/main/docs/SCOPED_PACKAGES.md).
+
+#### 2. Secrets — Cloud Environment / repository Secrets
+
+Put these in Cursor Cloud Environment Secrets (not hardcoded in `mcp.json`):
+
+| Secret | Role |
+|--------|------|
+| `SQLEW_DATABASE_URL` or `DATABASE_URL` | Remote Postgres (VM SQLite does not persist across agents) |
+| `SQLEW_PROJECT_NAME` | **Optional** override |
+
+**Project name priority:** `SQLEW_PROJECT_NAME` (env) **>** git repository name **>** config. On GitHub-backed Cloud Agents, git name is usually enough; set env when several repos share one DB.
+
+#### 3. Hooks — copy from this plugin
+
+Project command hooks only (`~/.cursor/hooks.json` is **not** loaded on Cloud). From a checkout of sqlew-plugin:
+
+```bash
+cp -R .cursor/hooks.json .cursor/hooks /path/to/your-project/.cursor/
+# Keep your project's .cursor/mcp.json (npx -y @sqlew/pg) alongside the hooks
+```
+
+Or open this plugin repo itself — it ships `.cursor/hooks.json` at the root (add `.cursor/mcp.json` as above for MCP).
+
+Locked product flow (aligned with [PR #3](https://github.com/sqlew-io/sqlew-plugin/pull/3)):
 
 ```text
 Post(Grep|WebSearch|WebFetch) → suggest inject (Related Context)
 Post(Write) / afterFileEdit   → enqueue draft to .sqlew/queue/pending.json (NO DB)
-stop                          → sqlew flush-queue / on-stop (upsert)
+stop                          → flush-queue / on-stop (upsert)
                               → optional short additional_context nudge if no draft yet
 ```
 
@@ -151,17 +192,6 @@ stop                          → sqlew flush-queue / on-stop (upsert)
 | `stop` → flush-queue / on-stop | intended | Upsert pending queue (Cloud without watcher) |
 | `beforeSubmitPrompt` (BSP) | **NO** (verifier 2026-10-21) | **Not for Cloud** — IDE leftover only |
 | `beforeMCPExecution` / `sessionStart` | N/A on managed Cloud | Do not depend on |
-
-**Install into a repo Cloud Agents will clone** (project hooks only; `~/.cursor/hooks.json` is not loaded on Cloud):
-
-```bash
-# From a checkout of sqlew-plugin — copy hooks into your project root:
-cp -R .cursor /path/to/your-project/
-# Ensure sqlew CLI is on PATH in the Cloud environment (env setup / snapshot):
-npm i -g sqlew
-```
-
-Or open this plugin repo itself — it ships `.cursor/hooks.json` at the root.
 
 **Marker mode (Cloud E2E without DB):**
 
@@ -181,7 +211,7 @@ node .cursor/hooks/smoke-test.mjs
 
 **Knobs:** `SQLEW_HOOK_MIN_SCORE` (35), `SQLEW_HOOK_MAX_ITEMS` (5), `SQLEW_HOOK_SUGGEST_TIMEOUT_MS` / `SQLEW_HOOK_SAVE_TIMEOUT_MS`, `SQLEW_HOOK_APPROACH2=0` (disable Write nudge), `SQLEW_HOOK_DRAFT_MCP=0` / `SQLEW_HOOK_SAVE=0`. Fail-open on CLI errors.
 
-Optional Cursor plugin manifest: `.cursor-plugin/plugin.json` (skills + hooks + MCP). Cloud delivery still requires project `.cursor/hooks.json`.
+Optional Cursor plugin manifest: `.cursor-plugin/plugin.json` (skills + hooks + MCP). Cloud delivery still requires project `.cursor/hooks.json` plus `.cursor/mcp.json` (`npx -y @sqlew/pg`).
 
 ### oh-my-pi (omp)
 
