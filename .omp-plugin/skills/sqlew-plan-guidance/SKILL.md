@@ -28,12 +28,29 @@ Stop / on-stop / flush-queue / QueueWatcher
 | Enqueue | After Write / Edit (gated) | Draft create → `.sqlew/queue/pending.json` |
 | Upsert | Stop / flush / QueueWatcher | DB register (Write=enqueue / Stop=flush) |
 
-**Cursor Cloud** (Post-only): `postToolUse` Grep|WebSearch|WebFetch → suggest; Write / `afterFileEdit` → enqueue; `stop` → flush.  
+**Cursor Cloud** (Post-only): needs **plugin hooks** (`.cursor/hooks.json`) — MCP alone is not enough. `postToolUse` Grep|WebSearch|WebFetch → suggest; Write / `afterFileEdit` → enqueue; `stop` → flush. See Cursor Cloud Notes.  
 **omp**: `tool_result` inject + write/edit enqueue; `session_stop` → flush.  
 **Claude Code / Grok Build / Codex**: shared `sqlew save` (enqueue when plan-less) + `sqlew on-stop` / flush.  
 **Hermes**: automatic Post inject is unavailable — use Skill via `/learn` (see Hermes Notes).
 
 **Plan-mode ADR creation still works as before** (📌/🚫 extraction on ExitPlanMode / exit_plan_mode / plan file write / Codex Stop). Use the sections below when you choose plan mode.
+
+---
+
+## Cursor Cloud Notes
+
+Plan-less suggest / ADR **auto-trigger** requires this plugin's Cursor hooks — `@sqlew/pg` MCP alone does not inject or enqueue.
+
+1. **MCP:** per-repo `.cursor/mcp.json` → `npx -y @sqlew/pg`
+2. **Secrets:** `SQLEW_DATABASE_URL` / `DATABASE_URL` from Cloud Environment Secrets (remote Postgres; not VM SQLite)
+3. **Project name:** optional `SQLEW_PROJECT_NAME`; else git repo name; config last. Priority **env > git > config**
+4. **Hooks:** project `.cursor/hooks.json` from this plugin (Post research inject; Write=enqueue; Stop=flush)
+
+```text
+Post(Grep|WebSearch|WebFetch) → Related Context
+Post(Write) / afterFileEdit   → .sqlew/queue/pending.json  (NO DB)
+stop                          → flush-queue / on-stop (upsert)
+```
 
 ---
 
