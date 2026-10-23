@@ -4,9 +4,27 @@ Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP se
 
 ## Features
 
-- **Skills**: Auto-triggered guidance for Plan Mode decision/constraint formatting
-- **Hooks**: Automatic context suggestion and decision saving
+- **Plan-less by default**: Plan mode is **not required** for suggest / ADR. Research tasks inject Related Context; Write enqueues drafts; Stop flushes (upsert). Plan-mode ADR still works as before.
+- **Skills**: Guidance for suggest, queue, and (optional) Plan Mode 📌/🚫 formatting
+- **Hooks**: Automatic context suggestion and decision enqueue/flush
 - **Cursor Cloud hooks** (experimental, **Post-only**): research suggest after `Grep` / `WebSearch` / `WebFetch`; Write=enqueue + stop=flush for ADR drafts
+
+## Plan-less harness workflow
+
+```text
+Research PostToolUse / tool_result  → Related Context (suggest inject)
+Write / Edit                        → enqueue → .sqlew/queue/pending.json  (NO DB)
+Stop / on-stop / flush-queue        → upsert pending items
+```
+
+| Client | Suggest inject | ADR draft | Upsert |
+|--------|----------------|-----------|--------|
+| **Cursor Cloud** | `postToolUse` Grep\|WebSearch\|WebFetch | Write / `afterFileEdit` → enqueue | `stop` → flush |
+| **omp** | `tool_result` → `additionalContext` | write/edit → enqueue | `session_stop` → flush |
+| **Claude Code / Grok / Codex** | Pre/Post hooks + skills | `sqlew save` enqueue when plan-less | `on-stop` / flush |
+| **Hermes** | **Unavailable** via hooks | Use Skill `/learn` (see below) | Plan file `save` if you write plans |
+
+Plan-mode ExitPlanMode / 📌/🚫 extraction is unchanged when you opt into plan mode.
 
 ## Installation
 
@@ -27,6 +45,8 @@ claude plugin marketplace add sqlew-io/sqlew-plugin
 claude plugin install sqlew
 ```
 
+Plan mode is **not required** for suggest / ADR. Research and Write hooks follow Write=enqueue / Stop=flush; ExitPlanMode extraction still works when you use plan mode.
+
 **Uninstall:**
 
 ```bash
@@ -42,7 +62,7 @@ grok plugin install sqlew-io/sqlew-plugin --trust
 grok plugin update
 ```
 
-Configures MCP (`.mcp.json`), skills, and hooks (plan tracking, decision extraction).
+Configures MCP (`.mcp.json`), skills, and hooks (plan tracking, decision extraction, plan-less save enqueue + stop flush). Plan mode is optional for ADR/suggest.
 
 > Do not duplicate hooks in `~/.grok/hooks/` or add `[mcp_servers.sqlew]` to `~/.grok/config.toml`.
 
@@ -61,7 +81,7 @@ codex plugin marketplace add sqlew-io/sqlew-plugin
 codex plugin install sqlew --source sqlew-plugin
 ```
 
-After install, open `/hooks` in Codex and trust the bundled sqlew hooks. Enable Plan mode when needed:
+After install, open `/hooks` in Codex and trust the bundled sqlew hooks. **Plan mode is not required** for suggest/ADR (Write=enqueue / Stop=flush). Enable Plan mode only when you want collaboration Plan + 📌/🚫 extraction:
 
 ```toml
 [features]
@@ -98,6 +118,12 @@ hermes hooks test pre_tool_call --for-tool terminal
 
 > Hermes has no native plan permission mode. Plan guidance is injected every turn via `pre_llm_call`. Plans live in `.hermes/plans/*.md`. See [HERMES_HOOKS.md](https://github.com/sqlew-io/sqlew/blob/main/docs/HERMES_HOOKS.md).
 
+**Hooks automatic trigger is unavailable on Hermes** (no Post research → suggest inject / Write → enqueue like Cursor or omp). Plan mode is optional. Prefer a Skill via `/learn`:
+
+```text
+/learn 「調査開始時にsqlewを使ってサジェストを取得し、実装前にADRをsqlewで記録することを義務付けて」
+```
+
 **Uninstall:**
 
 ```bash
@@ -108,7 +134,7 @@ Removes the plugin from `~/.hermes/plugins/`. Merged `config.yaml` entries and c
 
 ### Cursor (experimental — Cloud Agents, Post-only)
 
-Plan-less **Post** hooks for **Cursor Cloud Agents** (project command hooks only). Locked product flow:
+**Plan mode is not required.** Plan-less **Post** hooks for **Cursor Cloud Agents** (project command hooks only). Locked product flow (aligned with [PR #3](https://github.com/sqlew-io/sqlew-plugin/pull/3)):
 
 ```text
 Post(Grep|WebSearch|WebFetch) → suggest inject (Related Context)
@@ -228,11 +254,13 @@ hermes plugins enable sqlew
 
 | Skill | Description |
 |-------|-------------|
-| `sqlew-decision-format` | Guides Plan Mode decision/constraint formatting with Markdown patterns |
-| `sqlew-plan-guidance` | Quick reference for sqlew Plan-to-ADR integration |
+| `sqlew-decision-format` | 📌/🚫 format when using (optional) Plan Mode; plan-less ADR needs no plan markers |
+| `sqlew-plan-guidance` | Plan-less suggest/enqueue/flush + optional Plan-to-ADR; Hermes `/learn` note |
 | `sqlew-pr-adr` | Enriches PR bodies with ADR context via diff-based decision reverse lookup |
 
 ### Hooks
+
+Shared Claude / Grok / Codex hooks live in `hooks/hooks.json`. Cursor Cloud uses `.cursor/hooks.json` (Post-only). Plan mode is optional for ADR/suggest.
 
 | Event | Action | Description |
 |-------|--------|-------------|
@@ -240,13 +268,13 @@ hermes plugins enable sqlew
 | PreToolUse (Write\|write\|search_replace\|EnterPlanMode\|ExitPlanMode\|apply_patch) | `sqlew track-plan` | Tracks plans; Grok injects template; Grok exit_plan_mode gate if no filled 📌/🚫 |
 | PostToolUse (Edit\|Write\|write\|search_replace\|apply_patch) | `sqlew track-plan` | Grok: re-injects plan.md template if overwritten |
 | PreToolUse (Bash\|shell_command\|shell) | `sqlew pr-adr` | Blocks `gh pr create` without ADR markers |
-| PostToolUse (ExitPlanMode\|exit_plan_mode) | `sqlew on-exit-plan` | Extracts decisions from plan on exit |
-| PostToolUse (Edit\|Write\|apply_patch) | `sqlew save` | Auto-saves decisions from edited files |
+| PostToolUse (ExitPlanMode\|exit_plan_mode) | `sqlew on-exit-plan` | Extracts decisions from plan on exit (**plan mode; still works**) |
+| PostToolUse (Edit\|Write\|apply_patch) | `sqlew save` | Plan-less: **enqueue** draft to `.sqlew/queue/pending.json`; with plan: promote/extract |
 | PostToolUse (TodoWrite) | `sqlew check-completion` | Checks task completion status |
-| UserPromptSubmit / `pre_llm_call` | `sqlew on-prompt` | Injects plan guidance (Claude, Codex, Hermes) |
+| UserPromptSubmit / `pre_llm_call` | `sqlew on-prompt` | Injects plan guidance (Claude, Codex, Hermes) — optional |
 | SessionStart | `sqlew on-session-start` | Session startup hooks |
 | SubagentStop | `sqlew on-subagent-stop` | Processes subagent results |
-| Stop | `sqlew on-stop` / `sqlew on-exit-plan` | Cleanup; Codex plan extraction on stop |
+| Stop | `sqlew on-stop` / `sqlew on-exit-plan` | **Flush** pending queue (upsert); Codex plan extraction on stop |
 | Cursor `postToolUse` (Grep\|WebSearch\|WebFetch) | `.cursor/hooks/post-research-suggest.mjs` | Post-only Related Context via `additional_context` (Cloud) |
 | Cursor `postToolUse` (Write) / `afterFileEdit` | `.cursor/hooks/post-write-draft.mjs` | Enqueue draft to pending.json (no MCP set) + optional nudge |
 | Cursor `stop` | `.cursor/hooks/stop-flush.mjs` | `flush-queue` / `on-stop` upsert for Cloud |

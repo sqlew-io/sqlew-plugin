@@ -35,14 +35,24 @@ hooks_auto_accept: true
 
 Or set `HERMES_ACCEPT_HOOKS=1`.
 
-## Plan-to-ADR on Hermes
+## Plan-less vs plan mode on Hermes
 
-Hermes has no native plan permission mode. sqlew uses:
+**Plan mode is not required** for suggest / ADR. On Cursor, omp, Claude, Grok, and Codex, research hooks inject Related Context and Write enqueues drafts (Stop flushes). **Hermes cannot do that automatic Post-hook trigger** (`additional_context` / research inject after tools is unavailable).
+
+**Recommended:** create a Skill with `/learn` so suggest + ADR stay mandatory without relying on hooks:
+
+```text
+/learn 「調査開始時にsqlewを使ってサジェストを取得し、実装前にADRをsqlewで記録することを義務付けて」
+```
+
+## Plan-to-ADR on Hermes (optional plan path)
+
+Hermes has no native plan permission mode. When you still use plans, sqlew uses:
 
 1. **`pre_llm_call`** — injects plan guidance every turn (FULL once, then SHORT)
 2. **`write_file|patch` on `.hermes/plans/*.md`** — `track-plan` / `save` extract decisions
 
-Write plans with the `plan` skill into `.hermes/plans/`. Use `sqlew-decision-format` for the exact `📌` / `🚫` markers.
+Write plans with the `plan` skill into `.hermes/plans/`. Use `sqlew-decision-format` for the exact `📌` / `🚫` markers. Plan-mode ADR creation still works as before.
 
 ## Uninstall
 
