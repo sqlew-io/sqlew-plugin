@@ -1,6 +1,6 @@
 # sqlew-plugin
 
-Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), and **Cursor** (experimental Cloud Post-only hooks, v5.4.4+).
+Plugin for [sqlew](https://github.com/sqlew-io/sqlew) — context sharing MCP server with Plan-to-ADR integration. Supports **Claude Code**, **Grok Build** (v5.2+), **Codex** (v5.2.1+), **Hermes** (v5.3.0+), **oh-my-pi (omp)** (v5.4.0+), **Cursor** (experimental Cloud Post-only hooks, v5.4.4+), and **Muse Code** (native plugin; requires a sqlew build with Muse hook support).
 
 ## Features
 
@@ -23,6 +23,7 @@ Stop / on-stop / flush-queue        → upsert pending items
 | **omp** | `tool_result` → `additionalContext` | write/edit → enqueue | `session_stop` → flush |
 | **Claude Code / Grok / Codex** | Pre/Post hooks + skills | `sqlew save` enqueue when plan-less | `on-stop` / flush |
 | **Hermes** | **Unavailable** via hooks | Use Skill `/learn` (see below) | Plan file `save` if you write plans |
+| **Muse Code** | `SessionStart` context + skills/MCP | `PostToolUse` write_file/edit_file → enqueue | `Stop` → flush |
 
 Plan-mode ExitPlanMode / 📌/🚫 extraction is unchanged when you opt into plan mode.
 
@@ -248,6 +249,32 @@ omp --extension ./sqlew-plugin/.omp-plugin
 
 ```bash
 hermes plugins install ./.hermes-plugin
+```
+
+### Muse Code
+
+Uses the native `.muse-plugin/` bundle in this repo. Requires a sqlew MCP server build with Muse hook support (the current npm release predates it — install from a newer sqlew release once available).
+
+**Install (local checkout):**
+
+```bash
+muse plugins install ./sqlew-plugin --scope user
+muse plugins approve sqlew
+```
+
+Hooks and the MCP server are activated only after `approve`. Skills work without approval.
+
+The bundle registers:
+- Hooks: `SessionStart` (session context), `UserPromptSubmit` (plan guidance), `PreToolUse` (`pr-adr`), `PostToolUse` (`save` = enqueue draft), `SubagentStop`, `Stop` (queue flush)
+- MCP: `sqlew` (spawned via the bundled `hooks/sqlew-hook.cjs` launcher — raw `sqlew` cannot be spawned on Windows because npm installs a `.cmd` shim, so `node` must be on `PATH`)
+- Skills: `sqlew-plan-guidance`, `sqlew-decision-format`, `sqlew-pr-adr`
+
+Plan-less flow matches Claude Code: research suggests via skills/MCP, Write enqueues a draft, Stop flushes. Known limits on Muse: `PreToolUse` cannot inject context (hooks can only block there), and where the built-in `/plan` skill persists its plans is not yet wired into sqlew plan tracking.
+
+**Uninstall:**
+
+```bash
+muse plugins remove sqlew
 ```
 
 ## Why Use the Plugin?

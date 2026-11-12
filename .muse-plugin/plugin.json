@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "name": "sqlew",
+  "displayName": "sqlew",
+  "version": "5.4.4",
+  "description": "Context sharing for AI agents with Plan-to-ADR integration. Provides Skills, Hooks, and MCP for the sqlew server.",
+  "compat": {
+    "source": "native",
+    "manifestDir": ".muse-plugin"
+  },
+  "capabilities": {
+    "skills": [
+      {
+        "id": "sqlew-decision-format",
+        "path": "skills/sqlew-decision-format/SKILL.md"
+      },
+      {
+        "id": "sqlew-plan-guidance",
+        "path": "skills/sqlew-plan-guidance/SKILL.md"
+      },
+      {
+        "id": "sqlew-pr-adr",
+        "path": "skills/sqlew-pr-adr/SKILL.md"
+      }
+    ],
+    "commands": [],
+    "hooks": [
+      {
+        "id": "on-session-start",
+        "event": "SessionStart",
+        "command": [
+          "node",
+          "hooks/muse-on-session-start.cjs"
+        ],
+        "timeoutMs": 30000,
+        "statusMessage": "sqlew: loading session context"
+      },
+      {
+        "id": "on-prompt",
+        "event": "UserPromptSubmit",
+        "command": [
+          "node",
+          "hooks/muse-on-prompt.cjs"
+        ],
+        "timeoutMs": 10000
+      },
+      {
+        "id": "pr-adr",
+        "event": "PreToolUse",
+        "command": [
+          "node",
+          "hooks/muse-pr-adr.cjs"
+        ],
+        "timeoutMs": 10000
+      },
+      {
+        "id": "save",
+        "event": "PostToolUse",
+        "command": [
+          "node",
+          "hooks/muse-save.cjs"
+        ],
+        "timeoutMs": 30000
+      },
+      {
+        "id": "on-subagent-stop",
+        "event": "SubagentStop",
+        "command": [
+          "node",
+          "hooks/muse-on-subagent-stop.cjs"
+        ],
+        "timeoutMs": 30000
+      },
+      {
+        "id": "on-stop",
+        "event": "Stop",
+        "command": [
+          "node",
+          "hooks/muse-on-stop.cjs"
+        ],
+        "timeoutMs": 30000,
+        "statusMessage": "sqlew: flushing decision queue"
+      }
+    ],
+    "mcpServers": [
+      {
+        "id": "sqlew",
+        "command": [
+          "node",
+          "hooks/sqlew-hook.cjs"
+        ]
+      }
+    ],
+    "reminders": []
+  }
+}
